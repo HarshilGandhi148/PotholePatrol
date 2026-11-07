@@ -52,7 +52,21 @@ final class PotholeAPI {
     let response: PotholeWrapper = try await send(request("potholes/\(try pathID(id))/status", method: "PATCH", json: ["status": status.rawValue], token: token))
     return response.pothole
   }
-  func postDetection(jpeg: Data, lat: Double, lng: Double, capturedAt: Date, deviceId: String) async throws -> DetectionResponse {
+  /// Downloads a pothole photo. SwiftUI's `AsyncImage` can't set the header that gets past ngrok's warning page.
+  static func photoData(at url: URL) async throws -> Data {
+    var request = URLRequest(url: url, timeoutInterval: 30)
+    request.setValue("true", forHTTPHeaderField: "ngrok-skip-browser-warning")
+    let (data, response) = try await transport.data(for: request)
+    guard let http = response as? HTTPURLResponse, http.statusCode == 200,
+      http.mimeType?.hasPrefix("image/") == true
+    else { throw PatrolError.message("The photo couldn't be loaded.") }
+    return data
+  }
+  /// `extraFields` are sent alongside the required fields. The server ignores any it doesn't know.
+  func postDetection(
+    jpeg: Data, lat: Double, lng: Double, capturedAt: Date, deviceId: String,
+    extraFields: [String: String] = [:]
+  ) async throws -> DetectionResponse {
     guard !jpeg.isEmpty, jpeg.count <= 10 * 1024 * 1024, lat.isFinite, lng.isFinite,
       (-90...90).contains(lat), (-180...180).contains(lng) else {
       throw PatrolError.message("A JPEG under 10 MB and confirmed coordinates are required.")
@@ -61,7 +75,7 @@ final class PotholeAPI {
     var body = Data()
     let fields = ["lat": String(lat), "lng": String(lng),
       "captured_at": ISO8601DateFormatter().string(from: capturedAt), "device_id": deviceId]
-    for (name, value) in fields {
+    for (name, value) in extraFields.merging(fields, uniquingKeysWith: { _, required in required }) {
       body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".utf8))
     }
     body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"pothole.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n".utf8))

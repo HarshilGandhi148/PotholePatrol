@@ -16,7 +16,7 @@ Detecting &amp; reporting potholes.
 
 The Scan tab has two modes:
 
-- **Live Scan:** shows the live camera with steady boxes and each pothole's estimated area and location. Set the phone's height, mount it, and press Record before you start driving. Nothing is sent from this mode yet, and potholes are only kept in memory until you close it.
+- **Live Scan:** shows the live camera with steady boxes and each pothole's estimated area and location. Set the phone's height, mount it, and press Record before you start driving. When the app is sure about a pothole, it takes a photo and adds it to the count on the Save button, once per pothole. Tapping Save adds them to My Reports, where you can open each one, and sends them to the backend. Nothing goes to an agency until a resident reports it from the pothole's page.
 - **Report a Photo:** while standing still, take one plain photo, with no detection involved, then confirm its location and upload it.
 
 ## How the app steadies and sizes potholes

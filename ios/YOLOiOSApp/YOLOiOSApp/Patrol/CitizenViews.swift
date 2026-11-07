@@ -122,20 +122,32 @@ struct MyReportsView: View {
           Text("Original capture time retained. Retry only after reviewing the photo and location.").font(.caption).foregroundStyle(.secondary)
         }
       }
+      if !store.liveReports.isEmpty {
+        Section("Saved from Live Scan") {
+          if let problem = store.liveError { ErrorNotice(text: problem) }
+          if store.liveWaiting > 0 { Button("Send \(store.liveWaiting) now") { store.sendLiveReportsNow() } }
+          ForEach(store.liveReports.reversed()) { report in
+            NavigationLink { LiveReportDetailView(id: report.id) } label: { LiveReportRow(report: report) }
+              .swipeActions { Button("Delete", role: .destructive) { store.deleteLiveReport(id: report.id) } }
+          }
+        }
+      }
       if store.loading { ProgressView("Refreshing your reports…") }
       if let error = store.error { ErrorNotice(text: error) }
       if store.missingReports > 0 { Text("\(store.missingReports) unavailable report IDs were removed from this phone.").font(.caption) }
-      if store.myReports.isEmpty && !store.loading {
+      if store.myReports.isEmpty && store.liveReports.isEmpty && !store.loading {
         Text("No uploaded reports saved on this phone yet.").foregroundStyle(.secondary)
       }
       Section("Contributed from this phone") {
-        ForEach(store.myReports) { report in
+        // Reports saved from Live Scan are listed above, and lead to the same page.
+        ForEach(store.myReports.filter { report in !store.liveReports.contains { $0.serverID == report.id } }) { report in
           NavigationLink { PotholeDetailView(id: report.id) } label: {
             VStack(alignment: .leading, spacing: 8) {
               Text(report.title).font(.subheadline.weight(.semibold)); StatusBadge(status: report.status)
               Text(report.firstSeen.formatted(date: .abbreviated, time: .omitted)).font(.caption).foregroundStyle(.secondary)
             }.padding(.vertical, 4)
           }
+          .swipeActions { Button("Delete", role: .destructive) { store.removeFromMyReports(id: report.id) } }
         }
       }
       Text("Only contributed pothole IDs are saved for this list. This is not a user account or a driving history.").font(.caption).foregroundStyle(.secondary)

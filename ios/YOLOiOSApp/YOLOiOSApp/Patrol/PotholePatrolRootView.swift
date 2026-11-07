@@ -14,12 +14,14 @@ struct PotholePatrolRootView: View {
       NavigationStack { PatrolSettingsView(location: location) }.tabItem { Label("More", systemImage: "gearshape") }.tag(3)
     }
     .environmentObject(store).tint(Color(red: 0.12, green: 0.34, blue: 0.72))
+    .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in store.resumeLiveReports() }
   }
 }
 
 /// The Scan tab's two modes: live detection, or a plain photo to report.
 @MainActor
 struct ScanModesView: View {
+  @EnvironmentObject private var store: PatrolStore
   @ObservedObject var location: LocationService
   @State private var showingLiveScan = false
   var body: some View {
@@ -28,7 +30,7 @@ struct ScanModesView: View {
         Button { showingLiveScan = true } label: {
           modeCard(
             title: "Live Scan", systemImage: "video.fill",
-            detail: "See potholes with their estimated size and location live. Mount your phone and press Record before you start driving. Never handle your phone while driving.")
+            detail: "See potholes with their estimated size and location live. The app photographs potholes it's confident about, and tapping Save adds them to My Reports and sends them to Pothole Patrol, including whatever else is in the photo. Mount your phone and press Record before you start driving, and save after you've parked. Never handle your phone while driving.")
         }
         NavigationLink { PhotoReportView(location: location) } label: {
           modeCard(
@@ -38,7 +40,7 @@ struct ScanModesView: View {
       }.buttonStyle(.plain).padding()
     }
     .navigationTitle("Pothole Patrol").navigationBarTitleDisplayMode(.inline)
-    .fullScreenCover(isPresented: $showingLiveScan) { LiveScannerView(location: location) }
+    .fullScreenCover(isPresented: $showingLiveScan) { LiveScannerView(location: location, store: store) }
   }
   private func modeCard(title: String, systemImage: String, detail: String) -> some View {
     VStack(alignment: .leading, spacing: 8) {
@@ -128,11 +130,9 @@ struct PotholePhoto: View {
   var body: some View {
     Group {
       if let url, url.scheme?.lowercased() == "https" {
-        AsyncImage(url: url) { phase in
-          if let image = phase.image { image.resizable().scaledToFit() }
-          else if phase.error != nil { placeholder }
-          else { ProgressView().frame(maxWidth: .infinity, minHeight: 140) }
-        }
+        BackendImage(url: url) { $0.resizable().scaledToFit() } loading: {
+          ProgressView().frame(maxWidth: .infinity, minHeight: 140)
+        } failed: { placeholder }
       } else { placeholder }
     }.frame(maxWidth: .infinity).background(Color(.secondarySystemBackground)).clipShape(RoundedRectangle(cornerRadius: 8))
   }
@@ -144,8 +144,37 @@ struct PotholeThumbnail: View {
   var body: some View {
     Group {
       if let url, url.scheme?.lowercased() == "https" {
-        AsyncImage(url: url) { image in image.resizable().scaledToFill() } placeholder: { Image(systemName: "photo").foregroundStyle(.secondary) }
-      } else { Image(systemName: "photo").foregroundStyle(.secondary) }
+        BackendImage(url: url) { $0.resizable().scaledToFill() } loading: { placeholder } failed: { placeholder }
+      } else { placeholder }
     }.frame(width: 46, height: 46).background(Color(.secondarySystemBackground)).clipShape(RoundedRectangle(cornerRadius: 6))
   }
+  private var placeholder: some View { Image(systemName: "photo").foregroundStyle(.secondary) }
+}
+
+/// Loads a photo from the backend, keeping recent ones in memory so lists don't reload them.
+@MainActor
+private struct BackendImage<Content: View, Loading: View, Failed: View>: View {
+  private static var cache: NSCache<NSURL, UIImage> { BackendImageCache.shared }
+  let url: URL
+  @ViewBuilder let content: (Image) -> Content
+  @ViewBuilder let loading: () -> Loading
+  @ViewBuilder let failed: () -> Failed
+  @State private var image: UIImage?
+  @State private var didFail = false
+  var body: some View {
+    Group {
+      if let image { content(Image(uiImage: image)) } else if didFail { failed() } else { loading() }
+    }
+    .task(id: url) {
+      image = Self.cache.object(forKey: url as NSURL); didFail = false
+      guard image == nil else { return }
+      if let data = try? await PotholeAPI.photoData(at: url), let loaded = UIImage(data: data) {
+        Self.cache.setObject(loaded, forKey: url as NSURL); image = loaded
+      } else if !Task.isCancelled { didFail = true }
+    }
+  }
+}
+
+private enum BackendImageCache {
+  static let shared = NSCache<NSURL, UIImage>()
 }

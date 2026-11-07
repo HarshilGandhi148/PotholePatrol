@@ -66,7 +66,8 @@ Run `xcodebuild -showdestinations` with the same project/scheme for an explicit 
 - It's the only landscape screen, for a dashboard mount. It has no stationary check or speed stop, so it must be started before driving. Never operate a phone while driving.
 - Closing it stops the camera, and going to the background stops detection until Record is pressed again. The screen stays awake while it's open.
 - Each pothole's location comes from GPS plus its offset on the road. While moving at 3 m/s or more, the camera's direction comes from the GPS course, which assumes it faces the direction of travel. Otherwise it comes from the compass.
-- No video file is recorded, and nothing is sent. Each pothole's size and location stay in memory in `RecordViewController.detectedPotholes` until Live Scan is closed, ready for a later backend change. No journey history is stored.
+- No video file is recorded, and no journey history is stored or sent. While Record is on, a pothole is captured once, when `LiveReportGate` is sure: tracked for at least 1 s, confidence of at least 0.5, fully in frame, and at least 5 good measurements with GPS. It keeps the frame the detection came from, with no boxes on it, and holds it in memory, so captures that aren't saved are lost if the app quits. While the pothole stays in view, the photo is replaced by any later frame where it fills more of the picture and is still fully in frame, so Save uses the closest clear photo. Tapping Save sends them all, with no photo-by-photo review, so false detections and anything else in the frame can reach the backend.
+- Saved reports, including their photos, stay in protected files excluded from backups until the resident deletes them. They open from My Reports, and retry through a poor connection and when the app reopens. A copy of My Reports is also saved on the phone for each server. Reports also send `width_m`, `length_m` and `area_m2`, which the current server ignores. Nothing is sent to an agency, because the resident still reports from the pothole's detail page.
 
 **Report a Photo**
 
@@ -91,7 +92,7 @@ After success, only the returned pothole ID is retained for My Reports, scoped t
 | Endpoint | Native integration |
 | --- | --- |
 | `GET /health` | Settings connectivity check. The user-supplied live URL returned **HTTP 200, {"status":"ok"}** during Windows implementation. No other live API action was performed. |
-| `POST /detections` | One explicitly confirmed multipart request: photo JPEG, lat, lng, captured_at, device_id. New/merged response and actual returned ID shown. Not end-to-end exercised from a phone yet. |
+| `POST /detections` | Report a Photo: one explicitly confirmed multipart request. Live Scan: one automatic request per pothole. Both send photo JPEG, lat, lng, captured_at and device_id. Not end-to-end exercised from a phone yet. |
 | `GET /potholes` | Public map, admin map/history/unassigned section; up to documented maximum 1,000 records. No push/pagination contract is invented. |
 | `GET /potholes/{id}` | Public detail and My Reports current state. |
 | `GET /agencies` | Backend-provided administrator agency filter. |

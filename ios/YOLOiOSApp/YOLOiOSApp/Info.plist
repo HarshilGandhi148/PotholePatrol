@@ -27,7 +27,7 @@
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Use the camera for on-device pothole detection and a photo you choose to report.</string>
+	<string>Use the camera to detect potholes on your device, to photograph and report potholes during Live Scan, and to take a photo you choose to report.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>To save results to Photo Library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
@@ -76,6 +76,6 @@
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Work out where potholes are during Live Scan, and add a location to a pothole photo you report. No journey history is stored.</string>
+	<string>Work out where potholes are during Live Scan and send their locations with each report, and add a location to a pothole photo you report. No journey history is stored or sent.</string>
 </dict>
 </plist>

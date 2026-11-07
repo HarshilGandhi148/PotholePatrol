@@ -1,5 +1,6 @@
 // Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
 
+import Combine
 import CoreLocation
 import CoreMotion
 import SwiftUI
@@ -25,28 +26,37 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 /// Live Scan's camera preview with a model picker and one button: Record runs the selected bundled model with live
 /// boxes, Stop pauses it.
 final class RecordViewController: UIViewController {
-  /// A pothole seen during this Live Scan, kept in memory until it can be sent to the backend.
-  struct DetectedPothole {
-    let width: Double
-    let length: Double?
-    let area: Double?
-    let coordinate: GeoCoordinate?
-    let lastSeen: Date
-  }
-
   private let location: LocationService
+  private let store: PatrolStore
   private let onClose: () -> Void
-  private(set) var detectedPotholes = [Int: DetectedPothole]()
+  private let reportGate = LiveReportGate()
+  private let statusLabel = UILabel()
+  private let saveButton = UIButton(configuration: .filled())
+  /// A pothole the app is sure about, held until the person taps Save.
+  private struct Capture {
+    let trackID: Int
+    var photo: UIImage
+    /// How much of the frame the pothole fills in `photo`.
+    var photoArea: CGFloat
+    var time: Date
+    var coordinate: GeoCoordinate
+    var size: EstimatedSize
+  }
+  private var captures = [Capture]()
+  /// The most potholes held at once, because each photo takes up memory until it's saved.
+  private let maximumCaptures = 30
+  private var storeObserver: AnyCancellable?
   /// Whether the motion attitude is referenced to north, so it can give the camera's compass direction.
   private var hasCompassAttitude = false
 
-  init(location: LocationService, onClose: @escaping () -> Void) {
+  init(location: LocationService, store: PatrolStore, onClose: @escaping () -> Void) {
     self.location = location
+    self.store = store
     self.onClose = onClose
     super.init(nibName: nil, bundle: nil)
   }
 
-  required init?(coder: NSCoder) { fatalError("Use init(location:onClose:)") }
+  required init?(coder: NSCoder) { fatalError("Use init(location:store:onClose:)") }
 
   /// Every model we compared on real potholes. YOLO11n won, so it is the only one offered in the picker.
   /// YOLOv8s is not bundled because its author states no license (see README).
@@ -80,9 +90,9 @@ final class RecordViewController: UIViewController {
     yoloView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     // Alpha rather than isHidden: YOLOView re-shows some of its controls during layout.
     yoloView.subviews.forEach { $0.alpha = 0 }
-    [yoloView.sliderConf, yoloView.labelSliderConf, yoloView.labelFPS].forEach { $0.alpha = 1 }
+    yoloView.labelFPS.alpha = 1
     yoloView.excludedClasses = ["longitudinal_crack", "transverse_crack"]
-    // The tracker applies the slider's threshold, and needs weaker detections to keep known potholes alive.
+    // The tracker applies YOLOView's default threshold, and needs weaker detections to keep known potholes alive.
     yoloView.fixedInferenceConfidence = 0.10
     yoloView.resultTransform = { [weak self] result in
       self?.steadied(result) ?? result
@@ -100,12 +110,30 @@ final class RecordViewController: UIViewController {
       }, for: .valueChanged)
     view.addSubview(modelPicker)
 
+    statusLabel.translatesAutoresizingMaskIntoConstraints = false
+    statusLabel.textColor = .white
+    statusLabel.backgroundColor = .black.withAlphaComponent(0.5)
+    statusLabel.font = .preferredFont(forTextStyle: .caption1)
+    statusLabel.numberOfLines = 0
+    statusLabel.textAlignment = .center
+    view.addSubview(statusLabel)
+    NSLayoutConstraint.activate([
+      statusLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+      statusLabel.topAnchor.constraint(equalTo: modelPicker.bottomAnchor, constant: 44),
+      statusLabel.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor, constant: -32),
+    ])
+    showReportStatus()
+    // Reports keep going through after Stop, so this follows the store rather than the camera.
+    storeObserver = store.objectWillChange.receive(on: DispatchQueue.main).sink { [weak self] _ in
+      self?.showReportStatus()
+    }
+
     let closeButton = UIButton(configuration: .filled())
     closeButton.translatesAutoresizingMaskIntoConstraints = false
     closeButton.configuration?.title = "Close"
     closeButton.configuration?.cornerStyle = .capsule
     closeButton.configuration?.baseBackgroundColor = .black.withAlphaComponent(0.5)
-    closeButton.addAction(UIAction { [weak self] _ in self?.onClose() }, for: .touchUpInside)
+    closeButton.addAction(UIAction { [weak self] _ in self?.closeTapped() }, for: .touchUpInside)
     view.addSubview(closeButton)
     NSLayoutConstraint.activate([
       closeButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 12),
@@ -127,6 +155,17 @@ final class RecordViewController: UIViewController {
         self.setRunning(!self.isRunning)
       }, for: .touchUpInside)
     view.addSubview(button)
+
+    saveButton.translatesAutoresizingMaskIntoConstraints = false
+    saveButton.configuration?.cornerStyle = .capsule
+    saveButton.configuration?.baseBackgroundColor = .systemBlue
+    saveButton.addAction(UIAction { [weak self] _ in self?.saveCaptures() }, for: .touchUpInside)
+    view.addSubview(saveButton)
+    NSLayoutConstraint.activate([
+      saveButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+      saveButton.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+    ])
+    showSaveCount()
 
     heightSlider.minimumValue = 0.5
     heightSlider.maximumValue = 3
@@ -156,18 +195,18 @@ final class RecordViewController: UIViewController {
     loadModel(at: modelPicker.selectedSegmentIndex)
   }
 
-  /// Places the height slider across from the confidence slider, which `YOLOView` positions by frame.
+  /// Centers the height slider where `YOLOView` lays out its own hidden confidence slider, above the Record button.
   override func viewDidLayoutSubviews() {
     super.viewDidLayoutSubviews()
     yoloView.layoutIfNeeded()
     let confidenceSlider = yoloView.sliderConf.frame
-    let trailingEdge = view.bounds.width - max(view.safeAreaInsets.right, 20)
-    let width = min(confidenceSlider.width, trailingEdge - confidenceSlider.maxX - 16)
+    let margin = max(view.safeAreaInsets.left, view.safeAreaInsets.right, 20)
+    let width = min(view.bounds.width - margin * 2, 400)
+    let left = (view.bounds.width - width) / 2
     heightSlider.frame = CGRect(
-      x: trailingEdge - width, y: confidenceSlider.minY, width: width,
-      height: confidenceSlider.height)
+      x: left, y: confidenceSlider.minY, width: width, height: confidenceSlider.height)
     heightLabel.frame = CGRect(
-      x: trailingEdge - width, y: yoloView.labelSliderConf.frame.minY, width: width,
+      x: left, y: yoloView.labelSliderConf.frame.minY, width: width,
       height: yoloView.labelSliderConf.frame.height)
   }
 
@@ -274,9 +313,6 @@ final class RecordViewController: UIViewController {
     var labels = [Int: String]()
     for track in tracks {
       guard let size = sizeEstimator.size(id: track.id) else { continue }
-      detectedPotholes[track.id] = DetectedPothole(
-        width: size.width, length: size.length, area: size.area, coordinate: size.coordinate,
-        lastSeen: Date())
       let distance = String(format: "%.1f m", size.distance)
       let measurements =
         size.area.map { String(format: "≈%.1f ft² · ", $0 * squareFeetPerSquareMeter) + distance }
@@ -289,6 +325,84 @@ final class RecordViewController: UIViewController {
     return labels
   }
 
+  /// Photographs any pothole that's now certain, using the frame it was detected in, and holds it for the Save button.
+  /// While it stays in view, its photo is replaced whenever it's closer, and its size and location keep improving.
+  private func captureCertainPotholes(_ tracks: [TrackedDetection], in result: YOLOResult) {
+    if let photo = result.originalImage {
+      for track in tracks {
+        guard let size = sizeEstimator.size(id: track.id), let coordinate = size.coordinate else {
+          continue
+        }
+        if let index = captures.firstIndex(where: { $0.trackID == track.id }) {
+          captures[index].size = size
+          captures[index].coordinate = coordinate
+          if let area = reportGate.photoArea(of: track), area > captures[index].photoArea {
+            captures[index].photo = photo
+            captures[index].photoArea = area
+            captures[index].time = Date()
+          }
+        } else if captures.count < maximumCaptures, reportGate.shouldReport(track, at: coordinate),
+          let area = reportGate.photoArea(of: track)
+        {
+          reportGate.markReported(track, at: coordinate)
+          captures.append(
+            Capture(
+              trackID: track.id, photo: photo, photoArea: area, time: Date(),
+              coordinate: coordinate, size: size))
+        }
+      }
+      showSaveCount()
+    }
+    // Keeping a frame is slow, so only ask for one while it could become a capture or a closer photo.
+    let isFollowingCapture = tracks.contains { track in captures.contains { $0.trackID == track.id } }
+    yoloView.capturesOriginalImage =
+      isFollowingCapture || (captures.count < maximumCaptures && reportGate.wantsPhoto(of: tracks))
+  }
+
+  private func showSaveCount() {
+    saveButton.configuration?.title = captures.isEmpty ? "Save" : "Save \(captures.count)"
+    saveButton.isEnabled = !captures.isEmpty
+  }
+
+  /// Turns the held potholes into reports, which appear in My Reports and are sent to the backend.
+  private func saveCaptures() {
+    for capture in captures {
+      store.reportLive(
+        photo: capture.photo,
+        coordinate: (capture.coordinate.latitude, capture.coordinate.longitude),
+        capturedAt: capture.time, width: capture.size.width, length: capture.size.length,
+        area: capture.size.area)
+    }
+    captures.removeAll()
+    showSaveCount()
+  }
+
+  /// Unsaved potholes would be lost by closing, so ask first.
+  private func closeTapped() {
+    guard !captures.isEmpty else {
+      onClose()
+      return
+    }
+    let count = captures.count
+    let alert = UIAlertController(
+      title: count == 1 ? "Save this pothole?" : "Save these \(count) potholes?",
+      message: "They'll be added to My Reports and sent to Pothole Patrol.",
+      preferredStyle: .alert)
+    alert.addAction(
+      UIAlertAction(title: "Save", style: .default) { [weak self] _ in
+        self?.saveCaptures()
+        self?.onClose()
+      })
+    alert.addAction(
+      UIAlertAction(title: "Discard", style: .destructive) { [weak self] _ in self?.onClose() })
+    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+    present(alert, animated: true)
+  }
+
+  private func showReportStatus() {
+    statusLabel.text = store.liveStatus.map { " \($0) " }
+  }
+
   /// Replaces one frame's raw boxes with the tracker's steady ones, labeled with their size once it's known.
   private func steadied(_ result: YOLOResult) -> YOLOResult {
     let detections = result.boxes.map {
@@ -299,6 +413,7 @@ final class RecordViewController: UIViewController {
       detections, at: CACurrentMediaTime(),
       appearThreshold: Float(yoloView.getConfidenceThreshold()))
     let labels = sizeLabels(for: tracks, in: result)
+    captureCertainPotholes(tracks, in: result)
     let size = result.orig_shape
     return result.replacingBoxes(
       tracks.map { track in
