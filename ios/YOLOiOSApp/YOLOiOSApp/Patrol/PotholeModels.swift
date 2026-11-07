@@ -41,6 +41,8 @@ struct EmailDraft: Codable { let to: String?; let subject: String; let body: Str
 struct FormField: Codable {
   let key: String
   let label: String
+  let step: Int?
+  let matchLabel: String?
   let selector: String?
   let required: Bool
   let source: String
@@ -59,6 +61,7 @@ struct SendPlan: Codable {
   let callScript: String?
   let expectedResponse: String?
   let autofillReady: Bool
+  let instructions: [String]?
   let fields: [FormField]
 }
 struct Agency: Codable, Identifiable {

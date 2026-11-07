@@ -95,7 +95,7 @@ struct PotholeDetailView: View {
               if report.owner.confidence != "high" { Text("Location or ownership may need review.").font(.caption).foregroundStyle(.secondary) }
             }.frame(maxWidth: .infinity, alignment: .leading)
           }
-          GovernmentReportingNotice()
+          AgencyReportSection(report: report, plan: detail?.sendPlan) { await load() }
           Text("Status is provided by the backend. A closed report does not establish independent repair verification.").font(.caption).foregroundStyle(.secondary)
         }
       }.padding()
@@ -106,16 +106,6 @@ struct PotholeDetailView: View {
   private func load() async {
     loading = true; defer { loading = false }
     do { detail = try await store.api.pothole(id: id); error = nil } catch { self.error = error.localizedDescription }
-  }
-}
-
-/// Deliberately modular: no SeeClickFix link, autofill, or /send action is exposed.
-struct GovernmentReportingNotice: View {
-  var body: some View {
-    GroupBox("Government reporting · pending") {
-      Text("Agency handoff is awaiting an updated contract. Pothole Patrol has not submitted this observation to a government agency.")
-        .font(.subheadline).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
-    }
   }
 }
 

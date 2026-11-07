@@ -41,7 +41,7 @@ for path in [app / 'SceneDelegate.swift', app / 'AppDelegate.swift', *sources]:
 for name in ['CitizenViews.swift', 'DetectionReviewView.swift', 'LiveScannerView.swift']:
     text = (app / 'Patrol' / name).read_text(encoding='utf-8-sig')
     assert '.priority.' not in text and '.setStatus(' not in text, 'Staff fields/actions in citizen view'
-    assert '.markSent(' not in text and 'seeclickfix.com' not in text, 'Legacy agency flow must stay disabled'
+    assert 'seeclickfix.com' not in text, 'Agency links come from the backend send plan'
 print('PASS: citizen/staff presentation separation; no bundled ngrok URL or legacy reporting flow')
 if args.swift_parser_path:
     sys.path.insert(0, args.swift_parser_path)

@@ -30,8 +30,12 @@ struct DetectionReviewView: View {
           StatusBadge(status: result.pothole.status)
           Text("Saved to My Reports. The public map uses the backend's current record.").font(.subheadline)
           if !result.pothole.owner.isPublic { Text("Responsible agency not yet verified.").foregroundStyle(.secondary) }
-          Text("Government reporting is pending an updated contract. No agency has been contacted.").font(.caption).foregroundStyle(.secondary)
-          NavigationLink("View public report") { PotholeDetailView(id: result.potholeId) }
+          if result.askToSend, let agency = result.sendPlan?.agencyName {
+            Text("Ready to report to \(agency). Nothing has been sent yet.").font(.subheadline)
+            NavigationLink("Review and report") { PotholeDetailView(id: result.potholeId) }.buttonStyle(.borderedProminent)
+          } else {
+            NavigationLink("View public report") { PotholeDetailView(id: result.potholeId) }
+          }
           Button("Done") { dismiss() }.buttonStyle(.borderedProminent)
         } else {
           if let image = UIImage(data: draft.jpeg) { Image(uiImage: image).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 8)) }
