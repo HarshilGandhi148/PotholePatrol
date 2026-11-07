@@ -143,7 +143,7 @@ struct MyReportsView: View {
         }.listRowBackground(PatrolTheme.surface)
       }
       if !store.liveReports.isEmpty {
-        Section("Saved from Live Scan") {
+        Section("Saved from Live Scan and videos") {
           if let problem = store.liveError { ErrorNotice(text: problem) }
           if store.liveWaiting > 0 { Button("Send \(store.liveWaiting) now") { store.sendLiveReportsNow() } }
           ForEach(store.liveReports.reversed()) { report in

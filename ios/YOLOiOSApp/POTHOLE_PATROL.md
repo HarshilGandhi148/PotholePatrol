@@ -69,17 +69,23 @@ Run `xcodebuild -showdestinations` with the same project/scheme for an explicit 
 - No video file is recorded, and no journey history is stored or sent. While scanning, a pothole is captured once, when `LiveReportGate` is sure: tracked for at least 1 s, confidence of at least 0.5, fully in frame, and at least 5 good measurements with GPS. It keeps the frame the detection came from, with no boxes on it, and holds it in memory, so captures that aren't saved are lost if the app quits. While the pothole stays in view, the photo is replaced by any later frame where it fills more of the picture and is still fully in frame, so Save uses the closest clear photo. Tapping Save sends them all, with no photo-by-photo review, so false detections and anything else in the frame can reach the backend.
 - Saved reports, including their photos, stay in protected files excluded from backups until the resident deletes them. They open from My Reports, and retry through a poor connection and when the app reopens. A copy of My Reports is also saved on the phone for each server. Reports also send `width_m`, `length_m` and `area_m2`, which the current server ignores. Nothing is sent to an agency, because the resident still reports from the pothole's detail page.
 
+**Upload a Video**
+
+- `Patrol/VideoScanView.swift` picks a video with the system photo picker, which needs no photo library permission, and copies it to a temporary file that's deleted afterward. The video itself is never uploaded.
+- `VideoPotholeScanner` reads about 10 frames per second through the same tracker, checks and closest-photo rule as Live Scan, except that nothing depends on location, because the resident chooses one location for the whole video.
+- A video records no tilt or height, and the field of view is assumed, so size depends on values the resident enters and is rough. Every pothole from a video shares one location, so the backend merges them into one pothole if they're on the same road.
+
 **Report a Photo**
 
 - Uses `UIImagePickerController`, so the model doesn't run and the photo has no boxes on it.
 - A stationary confirmation is required, and taking a photo is blocked when recent GPS reports a speed above 2 m/s. This is a limited safety aid, not a reliable driving detector, because poor or absent speed data can't prove someone is stationary.
-- The app asks for a fresh location when the camera opens. If the photo takes more than about 15 seconds, the location stays empty and the resident sets it on the review screen.
+- Location updates run while this screen is open, and the app waits up to 8 seconds after the photo for an accurate position. Within 20 m, the location is filled in and starts confirmed, and the resident can correct it. A less accurate position is filled in but must be confirmed, and with no position the resident sets it on the review screen.
 - Capture time is recorded when the photo is returned.
 - Photos are resized to at most 1920 points/pixels and compressed under 10 MiB, which also avoids retaining photo-library metadata. The backend additionally strips EXIF.
 
 ## Location, pending observations, and privacy
 
-A fresh capture GPS is accepted only with valid horizontal accuracy at most 20 m and a timestamp within 15 s of the shutter request. Otherwise coordinates remain absent. The resident must confirm the location before upload and can enter coordinates or explicitly select the map center. No default map center becomes an observation coordinate automatically. Later GPS is an explicit manual correction, not silently assigned as the location of an earlier photo. This iteration has no gallery-import flow.
+A capture GPS position within 20 m starts confirmed. A less accurate one up to 30 s old is filled in but must be confirmed, and otherwise coordinates remain absent. The resident can correct the location before upload by entering coordinates or explicitly selecting the map center, which requires confirming it. No default map center becomes an observation coordinate automatically. Later GPS is an explicit manual correction, not silently assigned as the location of an earlier photo. This iteration has no gallery-import flow.
 
 Location updates run while scanning, or as explicit one-shot requests for review/map centering. No background location mode, journey log, or continuous coordinate history is stored. The device ID is a random UUID in UserDefaults, stable across launches, not a hardware fingerprint.
 

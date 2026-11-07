@@ -17,6 +17,8 @@ struct DetectionReviewView: View {
   @State private var region: MKCoordinateRegion
   init(observation: PendingObservation, location: LocationService) {
     self.location = location; _draft = State(initialValue: observation)
+    // An accurate automatic location starts out confirmed. Changing the coordinates clears this.
+    _confirmed = State(initialValue: observation.lat != nil && (observation.accuracyMeters ?? .infinity) <= 20)
     _latitude = State(initialValue: observation.lat.map { String($0) } ?? "")
     _longitude = State(initialValue: observation.lng.map { String($0) } ?? "")
     _region = State(initialValue: MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: observation.lat ?? 39.957, longitude: observation.lng ?? -86.0145), span: MKCoordinateSpan(latitudeDelta: 0.008, longitudeDelta: 0.008)))

@@ -46,6 +46,7 @@ final class RecordViewController: UIViewController {
   /// The most potholes held at once, because each photo takes up memory until it's saved.
   private let maximumCaptures = 30
   private var storeObserver: AnyCancellable?
+  private var locationObserver: AnyCancellable?
   /// Whether the motion attitude is referenced to north, so it can give the camera's compass direction.
   private var hasCompassAttitude = false
 
@@ -129,6 +130,9 @@ final class RecordViewController: UIViewController {
     showReportStatus()
     // Reports keep going through after Stop, so this follows the store rather than the camera.
     storeObserver = store.objectWillChange.receive(on: DispatchQueue.main).sink { [weak self] _ in
+      self?.showReportStatus()
+    }
+    locationObserver = location.objectWillChange.receive(on: DispatchQueue.main).sink { [weak self] _ in
       self?.showReportStatus()
     }
 
@@ -437,7 +441,16 @@ final class RecordViewController: UIViewController {
   }
 
   private func showReportStatus() {
-    statusLabel.text = store.liveStatus.map { " \($0) " }
+    let lines = [locationProblem, store.liveStatus].compactMap { $0 }
+    statusLabel.text = lines.isEmpty ? nil : " \(lines.joined(separator: "\n")) "
+  }
+
+  /// Why potholes can't be captured right now, since every report needs a location.
+  private var locationProblem: String? {
+    if location.authorization == .denied || location.authorization == .restricted {
+      return "Location is off, so potholes can't be saved. Turn it on in iOS Settings."
+    }
+    return isRunning && location.freshLocation(at: Date()) == nil ? "Waiting for GPS…" : nil
   }
 
   /// Replaces one frame's raw boxes with the tracker's steady ones, labeled with their size once it's known.
