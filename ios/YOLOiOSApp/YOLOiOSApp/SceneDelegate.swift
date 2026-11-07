@@ -23,7 +23,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
   }
 }
 
-/// Live Scan's camera preview with a model picker and one button: Record runs the selected bundled model with live
+/// Live Scan's camera preview with a model picker and one button: Start runs the selected bundled model with live
 /// boxes, Stop pauses it.
 final class RecordViewController: UIViewController {
   private let location: LocationService
@@ -74,6 +74,7 @@ final class RecordViewController: UIViewController {
   private let motion = CMMotionManager()
   private let heightSlider = UISlider()
   private let heightLabel = UILabel()
+  private let scanStatus = UILabel()
   private var isRunning = false
 
   private static let heightKey = "cameraHeightMeters"
@@ -90,7 +91,6 @@ final class RecordViewController: UIViewController {
     yoloView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     // Alpha rather than isHidden: YOLOView re-shows some of its controls during layout.
     yoloView.subviews.forEach { $0.alpha = 0 }
-    yoloView.labelFPS.alpha = 1
     yoloView.excludedClasses = ["longitudinal_crack", "transverse_crack"]
     // The tracker applies YOLOView's default threshold, and needs weaker detections to keep known potholes alive.
     yoloView.fixedInferenceConfidence = 0.10
@@ -101,7 +101,9 @@ final class RecordViewController: UIViewController {
 
     modelPicker.translatesAutoresizingMaskIntoConstraints = false
     modelPicker.overrideUserInterfaceStyle = .dark
-    modelPicker.backgroundColor = .black.withAlphaComponent(0.5)
+    modelPicker.backgroundColor = UIColor(PatrolTheme.background).withAlphaComponent(0.8)
+    modelPicker.selectedSegmentTintColor = UIColor(PatrolTheme.elevated)
+    modelPicker.accessibilityLabel = "Detection model"
     modelPicker.selectedSegmentIndex = 0
     modelPicker.addAction(
       UIAction { [weak self] _ in
@@ -111,8 +113,10 @@ final class RecordViewController: UIViewController {
     view.addSubview(modelPicker)
 
     statusLabel.translatesAutoresizingMaskIntoConstraints = false
-    statusLabel.textColor = .white
-    statusLabel.backgroundColor = .black.withAlphaComponent(0.5)
+    statusLabel.textColor = UIColor(PatrolTheme.text)
+    statusLabel.backgroundColor = UIColor(PatrolTheme.background).withAlphaComponent(0.8)
+    statusLabel.layer.cornerRadius = 8
+    statusLabel.clipsToBounds = true
     statusLabel.font = .preferredFont(forTextStyle: .caption1)
     statusLabel.numberOfLines = 0
     statusLabel.textAlignment = .center
@@ -130,14 +134,36 @@ final class RecordViewController: UIViewController {
 
     let closeButton = UIButton(configuration: .filled())
     closeButton.translatesAutoresizingMaskIntoConstraints = false
-    closeButton.configuration?.title = "Close"
+    closeButton.configuration?.image = UIImage(systemName: "xmark")
+    closeButton.accessibilityLabel = "Exit Live Scan"
     closeButton.configuration?.cornerStyle = .capsule
-    closeButton.configuration?.baseBackgroundColor = .black.withAlphaComponent(0.5)
+    closeButton.configuration?.baseBackgroundColor = UIColor(PatrolTheme.background).withAlphaComponent(0.8)
+    closeButton.configuration?.baseForegroundColor = UIColor(PatrolTheme.text)
     closeButton.addAction(UIAction { [weak self] _ in self?.closeTapped() }, for: .touchUpInside)
     view.addSubview(closeButton)
     NSLayoutConstraint.activate([
       closeButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 12),
       closeButton.centerYAnchor.constraint(equalTo: modelPicker.centerYAnchor),
+      closeButton.widthAnchor.constraint(equalToConstant: 44),
+      closeButton.heightAnchor.constraint(equalToConstant: 44),
+    ])
+
+    scanStatus.translatesAutoresizingMaskIntoConstraints = false
+    scanStatus.font = UIFont.preferredFont(forTextStyle: .caption1)
+    scanStatus.adjustsFontForContentSizeCategory = true
+    scanStatus.numberOfLines = 0
+    scanStatus.textAlignment = .center
+    scanStatus.textColor = UIColor(PatrolTheme.text)
+    scanStatus.backgroundColor = UIColor(PatrolTheme.background).withAlphaComponent(0.8)
+    scanStatus.layer.cornerRadius = 12
+    scanStatus.clipsToBounds = true
+    view.addSubview(scanStatus)
+    NSLayoutConstraint.activate([
+      scanStatus.leadingAnchor.constraint(equalTo: closeButton.trailingAnchor, constant: 8),
+      scanStatus.trailingAnchor.constraint(lessThanOrEqualTo: modelPicker.leadingAnchor, constant: -8),
+      scanStatus.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor),
+      scanStatus.heightAnchor.constraint(greaterThanOrEqualToConstant: 32),
+      scanStatus.widthAnchor.constraint(greaterThanOrEqualToConstant: 88),
     ])
 
     // The camera stops delivering frames in the background, so don't resume without the person choosing to.
@@ -147,6 +173,8 @@ final class RecordViewController: UIViewController {
 
     button.translatesAutoresizingMaskIntoConstraints = false
     button.configuration?.cornerStyle = .capsule
+    button.configuration?.baseForegroundColor = UIColor(PatrolTheme.text)
+    button.configuration?.imagePadding = 8
     button.configuration?.contentInsets = NSDirectionalEdgeInsets(
       top: 16, leading: 40, bottom: 16, trailing: 40)
     button.addAction(
@@ -158,7 +186,8 @@ final class RecordViewController: UIViewController {
 
     saveButton.translatesAutoresizingMaskIntoConstraints = false
     saveButton.configuration?.cornerStyle = .capsule
-    saveButton.configuration?.baseBackgroundColor = .systemBlue
+    saveButton.configuration?.baseBackgroundColor = UIColor(PatrolTheme.accent)
+    saveButton.configuration?.baseForegroundColor = UIColor(PatrolTheme.background)
     saveButton.addAction(UIAction { [weak self] _ in self?.saveCaptures() }, for: .touchUpInside)
     view.addSubview(saveButton)
     NSLayoutConstraint.activate([
@@ -170,6 +199,8 @@ final class RecordViewController: UIViewController {
     heightSlider.minimumValue = 0.5
     heightSlider.maximumValue = 3
     heightSlider.value = Float(cameraHeight)
+    heightSlider.tintColor = UIColor(PatrolTheme.accent)
+    heightSlider.accessibilityLabel = "Phone height above road in meters"
     heightSlider.addAction(
       UIAction { [weak self] _ in
         guard let self else { return }
@@ -181,13 +212,19 @@ final class RecordViewController: UIViewController {
       }, for: .valueChanged)
     heightLabel.textColor = yoloView.labelSliderConf.textColor
     heightLabel.font = yoloView.labelSliderConf.font
+    for control in [heightSlider, heightLabel] {
+      control.backgroundColor = UIColor(PatrolTheme.background).withAlphaComponent(0.8)
+      control.layer.cornerRadius = 8
+      control.clipsToBounds = true
+    }
     showCameraHeight()
     view.addSubview(heightLabel)
     view.addSubview(heightSlider)
 
     NSLayoutConstraint.activate([
-      modelPicker.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+      modelPicker.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -12),
       modelPicker.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+      modelPicker.heightAnchor.constraint(equalToConstant: 44),
       button.centerXAnchor.constraint(equalTo: view.centerXAnchor),
       button.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24),
     ])
@@ -454,7 +491,10 @@ final class RecordViewController: UIViewController {
     }
     yoloView.setInferenceFlag(ok: running)
     yoloView.showOverlays = running  // Turning this off also clears the boxes left on screen.
-    button.configuration?.title = running ? "Stop" : "Record"
-    button.configuration?.baseBackgroundColor = running ? .darkGray : .systemRed
+    button.configuration?.title = running ? "Stop" : "Start"
+    button.configuration?.image = UIImage(systemName: running ? "stop.fill" : "play.fill")
+    button.configuration?.baseBackgroundColor = UIColor(running ? PatrolTheme.elevated : PatrolTheme.accent)
+    button.configuration?.baseForegroundColor = UIColor(running ? PatrolTheme.text : PatrolTheme.background)
+    scanStatus.text = running ? "Scanning" : "Paused"
   }
 }
