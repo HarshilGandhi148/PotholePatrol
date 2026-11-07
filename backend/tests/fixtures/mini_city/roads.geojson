@@ -1,0 +1,147 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Sagamore Parkway",
+    "ref": "US 52;US 231",
+    "highway": "primary"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -86.9,
+      40.3
+     ],
+     [
+      -86.9,
+      40.5
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Main Street",
+    "highway": "residential"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -86.91,
+      40.42
+     ],
+     [
+      -86.85,
+      40.42
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "County Road 300 N",
+    "highway": "unclassified"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -86.95,
+      40.5
+     ],
+     [
+      -86.75,
+      40.5
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "ref": "I 65",
+    "highway": "motorway"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -86.8,
+      40.3
+     ],
+     [
+      -86.8,
+      40.55
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "highway": "service",
+    "service": "parking_aisle"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -86.88,
+      40.39
+     ],
+     [
+      -86.875,
+      40.39
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Private Lane",
+    "highway": "residential",
+    "access": "private"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -86.87,
+      40.405
+     ],
+     [
+      -86.865,
+      40.405
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Railroad Street",
+    "highway": "residential"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -86.965,
+      40.53
+     ],
+     [
+      -86.955,
+      40.53
+     ]
+    ]
+   }
+  }
+ ]
+}

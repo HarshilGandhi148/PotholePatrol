@@ -1,0 +1,133 @@
+[
+  {
+    "id": "city:indianapolis",
+    "name": "City of Indianapolis",
+    "channel": "webform",
+    "url": "https://request.indy.gov/",
+    "phone": "317-327-4622",
+    "email": null,
+    "expected_response": null,
+    "autofill_ready": false,
+    "fields": [
+      {
+        "key": "location",
+        "label": "Location",
+        "selector": null,
+        "required": true,
+        "source": "location_text"
+      },
+      {
+        "key": "description",
+        "label": "Description",
+        "selector": null,
+        "required": true,
+        "source": "description"
+      },
+      {
+        "key": "photo",
+        "label": "Photo",
+        "selector": null,
+        "required": false,
+        "source": "photo_url"
+      }
+    ],
+    "instructions": []
+  },
+  {
+    "id": "city:fishers",
+    "name": "City of Fishers",
+    "channel": "webform",
+    "url": "https://seeclickfix.com/web_portal/26pMJzv8jeF89NAhJy6TgFXT/report/category/28527",
+    "phone": "317-595-3111",
+    "email": null,
+    "expected_response": null,
+    "autofill_ready": true,
+    "fields": [
+      {
+        "key": "location_search",
+        "label": "Location search",
+        "step": 1,
+        "match_label": "Search for Location or Address",
+        "selector": null,
+        "required": true,
+        "source": "location_search"
+      },
+      {
+        "key": "summary",
+        "label": "Issue title",
+        "step": 2,
+        "match_label": "Issue Title",
+        "selector": null,
+        "required": true,
+        "source": "title"
+      },
+      {
+        "key": "description",
+        "label": "Description",
+        "step": 2,
+        "match_label": "Description",
+        "selector": null,
+        "required": false,
+        "source": "description"
+      },
+      {
+        "key": "contact",
+        "label": "Name and phone",
+        "step": 2,
+        "match_label": "Please provide your name",
+        "selector": null,
+        "required": false,
+        "source": "user.contact"
+      },
+      {
+        "key": "image",
+        "label": "Image",
+        "step": 2,
+        "match_label": "Image",
+        "selector": null,
+        "required": false,
+        "source": "photo_url"
+      }
+    ],
+    "instructions": [
+      "Check the pin is on the pothole, then tap Confirm Location.",
+      "Check the details and attach the photo.",
+      "Choose Guest on the last page.",
+      "Tap Submit yourself."
+    ]
+  },
+  {
+    "id": "indot",
+    "name": "Indiana Department of Transportation (INDOT)",
+    "channel": "webform",
+    "url": "https://indot4u.511in.org/report",
+    "phone": "1-855-463-6848",
+    "email": null,
+    "expected_response": "Up to 15 business days",
+    "autofill_ready": false,
+    "fields": [
+      {
+        "key": "first_name",
+        "label": "First name",
+        "selector": null,
+        "required": true,
+        "source": "user.first_name"
+      },
+      {
+        "key": "location",
+        "label": "Location",
+        "selector": null,
+        "required": true,
+        "source": "location_text"
+      },
+      {
+        "key": "description",
+        "label": "Description",
+        "selector": null,
+        "required": true,
+        "source": "description"
+      }
+    ],
+    "instructions": []
+  }
+]

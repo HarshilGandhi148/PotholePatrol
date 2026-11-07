@@ -2,7 +2,7 @@
 
 Everything you need to connect the app to the backend. All example responses come from the running API, and the Swift client in section 8 was run against it.
 
-**Ask Sanyam for two things, which are not in this public repo:**
+**The backend code is in [`backend/`](backend/). Ask Sanyam for two things, which are not in this public repo:**
 1. The HTTPS base URL.
 2. The officials passcode.
 
@@ -385,6 +385,7 @@ A real response:
   "url": "https://request.indy.gov/",
   "phone": "317-327-4622",
   "email": null,
+  "instructions": [],
   "title": "Pothole on Massachusetts Avenue near East New York Street",
   "description": "Pothole on Massachusetts Avenue near East New York Street. GPS 39.77190, -86.15338. 1 report through PotholePatrol, first seen 2026-11-07.",
   "copy_text": "Pothole on Massachusetts Avenue near East New York Street\nPothole on Massachusetts Avenue near East New York Street. GPS 39.77190, -86.15338. 1 report through PotholePatrol, first seen 2026-11-07.",
@@ -395,6 +396,8 @@ A real response:
     {
       "key": "location",
       "label": "Location",
+      "step": 1,
+      "match_label": null,
       "selector": null,
       "required": true,
       "source": "location_text",
@@ -415,7 +418,8 @@ A real response:
 | `copy_text` | string | No | Title and description, ready to copy |
 | `call_script` | string | Yes | What to say on a call. Present when the agency has a phone number. |
 | `expected_response` | string | Yes | Typical wait |
-| `autofill_ready` | boolean | No | `true` only once the form has been tested |
+| `autofill_ready` | boolean | No | `true` means try to fill the form. Only Fishers today. |
+| `instructions` | array of strings | No | What the resident does on the page, in order. Show these beside the form. |
 | `fields` | array | No | Form fields. Empty for `contact_only`. |
 
 Each item in `fields`:
@@ -424,7 +428,9 @@ Each item in `fields`:
 |---|---|---|---|
 | `key` | string | No | Our name for the field |
 | `label` | string | No | Label to show |
-| `selector` | string | Yes | CSS selector on the agency's page. All `null` for now. |
+| `step` | integer | No | Which page of the form the field is on, starting at 1 |
+| `match_label` | string | Yes | Visible label to find the field by |
+| `selector` | string | Yes | CSS selector, if known. Use this first. |
 | `required` | boolean | No | Does the agency need it? |
 | `source` | string | No | Where the value comes from |
 | `value` | string | Yes | Value to fill in |
@@ -442,29 +448,65 @@ Follow `send_plan.method`:
 
 **`open_form` steps:**
 
-1. Show the pothole title and `expected_response`.
-2. Open `url` in WKWebView.
-3. If `autofill_ready` is `false`, offer `copy_text`. **This is the case for every agency today.**
-4. If `autofill_ready` is `true`, fill each field that has a `selector`.
+1. Show the review page: pothole title, photo, owner, `reason` and `description`.
+2. When the resident taps **Confirm**, open `url` in WKWebView.
+3. If `autofill_ready` is `true`, fill the fields for each page as it appears, and show `instructions`.
+4. If `autofill_ready` is `false`, or filling fails, offer `copy_text`.
 5. The resident checks the form and taps the agency's own Submit. **Never tap Submit from code.**
 6. Show an "I submitted it" button. The app can't detect the agency's Submit.
 7. When they tap it, call `POST /potholes/{id}/send`.
 
+**Status by agency:**
+
+| Agency | `autofill_ready` | Notes |
+|---|---|---|
+| Fishers | `true` | Being tested. Filling by label hasn't been tried on the real form yet. |
+| INDOT | `false` | Use `copy_text`. Three pages, and it has reCAPTCHA. |
+| Indianapolis | `false` | Use `copy_text`. Salesforce hides fields in shadow DOM, and the form hasn't been inspected. |
+
+**Fishers form (SeeClickFix):**
+
+| Page | What happens | Filled by |
+|---|---|---|
+| 1. Location | Open the search, enter `location_search`, then the resident checks the pin and taps Confirm Location | App, then resident |
+| 2. Details | Issue Title (required), Description, name and phone, Image | App |
+| 3. Last page | The resident chooses **Guest** and taps Submit. No account is needed. | Resident |
+
+The Address Search control has to be tapped before its text box exists. Confirm Location stays disabled until the map has a valid pin. On page 1, if `location_search` finds nothing, ask the resident to place the pin themselves.
+
+**Filling a field by label.** Plain `input.value = x` doesn't work on this form, because it's a script-driven page. Use the native setter and fire an `input` event:
+
+```javascript
+function fillByLabel(labelText, value) {
+  const label = [...document.querySelectorAll("label, legend, span, div")]
+    .find(el => el.children.length === 0 && el.textContent.trim().startsWith(labelText));
+  const scope = label?.closest("label, div");
+  const field = scope?.querySelector("input, textarea") ?? scope?.parentElement?.querySelector("input, textarea");
+  if (!field) return false;
+  const proto = field.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, "value").set.call(field, value);
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+  field.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}
+```
+
+Run it from `webView.evaluateJavaScript` after each page loads. If it returns `false`, show `copy_text`. This hasn't been run on the real form, so expect to adjust it. Tell Sanyam what the real field HTML looks like and the backend data can change without an app update.
+
 **Things to know:**
 
-- **A site may ask residents to sign in.** That isn't confirmed for Request Indy or Fishers Connect yet. If one does, the resident signs in on the page. Don't handle their password in our app.
-- **`user.*` fields stay on the phone.** If `source` starts with `user.`, such as `user.first_name`, `value` is `null`. Fill it from the phone, because the server stores no resident details.
-- **Photos can't be autofilled.** JavaScript can't set a file input, so the resident attaches the photo on the page.
-- **Don't test with real submissions.** Stop before Submit, so test reports never reach real staff.
+- **`user.*` fields stay on the phone.** If `source` starts with `user.`, `value` is `null`. Fill it from the phone or leave it empty, because the server stores no resident details.
+- **Photos:** try setting the file input with a `DataTransfer`. If that fails, the resident attaches the photo on the page.
+- **Guests get no updates.** If a resident reports as a guest, the city can't send them status updates.
+- **reCAPTCHA:** if one appears, the resident answers it. Never try to skip it.
+- **Don't send real test reports.** Stop before Submit, so test reports never reach real staff.
 
-**Needed from you:** test each form in WKWebView and send Sanyam the results for each agency:
+**Needed from you:** run Fishers on a real iPhone and tell Sanyam:
 
-- Does the page load in WKWebView?
-- What's the CSS selector for each field?
-- Which fields are required?
-- Does it accept a photo?
-
-Those results turn on `autofill_ready`. No app change should be needed if you've built step 4.
+- Which fields filled, and which didn't?
+- What's the HTML of any field that failed?
+- Did `location_search` find the right place?
+- Did the photo attach?
 
 ## 8. Swift client
 
@@ -523,6 +565,8 @@ struct EmailDraft: Codable {
 struct FormField: Codable {
     let key: String
     let label: String
+    let step: Int
+    let matchLabel: String?
     let selector: String?
     let required: Bool
     let source: String
@@ -542,6 +586,7 @@ struct SendPlan: Codable {
     let callScript: String?
     let expectedResponse: String?
     let autofillReady: Bool
+    let instructions: [String]
     let fields: [FormField]
 }
 
@@ -858,10 +903,8 @@ Keep API calls in `src/services/`, as `frontend/AGENTS.md` says. Set `VITE_API_B
 | Item | Status | Who |
 |---|---|---|
 | HTTPS base URL | Sanyam will share it. It may change if the server restarts. | Sanyam |
-| Form autofill | All fields are placeholders until the WKWebView tests are done. Use `copy_text`. | Frontend, then Sanyam |
-| Fishers form | `url` is the Fishers Connect page. It blocks automated checks, so open it in a real browser to confirm it. | Frontend or Sanyam |
+| Form autofill | Fishers is ready to test on a real iPhone. INDOT and Indianapolis use `copy_text`. | Frontend, then Sanyam |
 | Demo data | The database starts empty. There's no public Indianapolis data to import. | Sanyam |
-| Backend code | Not in this repo yet | Sanyam |
 | iPhone testing | The API hasn't been tested from a real iPhone or over HTTPS | Everyone |
 | Real accounts | Not planned for MVP 1. Officials share one passcode. | MVP 2 |
 | Video upload | Not supported | MVP 2 |

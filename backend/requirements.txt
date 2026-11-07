@@ -1,0 +1,10 @@
+fastapi==0.162.2
+httpx==0.28.1
+pillow==13.0.0
+pyproj==3.8.0
+pyshp==3.1.7
+pytest==9.2.0
+python-dotenv==1.2.4
+python-multipart==0.0.33
+shapely==2.2.0
+uvicorn==0.54.0

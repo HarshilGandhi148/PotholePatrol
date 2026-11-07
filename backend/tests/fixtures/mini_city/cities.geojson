@@ -1,0 +1,73 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Indianapolis",
+    "NAMELSAD": "Indianapolis city"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -86.92,
+       40.37
+      ],
+      [
+       -86.84,
+       40.37
+      ],
+      [
+       -86.84,
+       40.44
+      ],
+      [
+       -86.92,
+       40.44
+      ],
+      [
+       -86.92,
+       40.37
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Battle Ground",
+    "NAMELSAD": "Battle Ground town"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -86.97,
+       40.52
+      ],
+      [
+       -86.95,
+       40.52
+      ],
+      [
+       -86.95,
+       40.54
+      ],
+      [
+       -86.97,
+       40.54
+      ],
+      [
+       -86.97,
+       40.52
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

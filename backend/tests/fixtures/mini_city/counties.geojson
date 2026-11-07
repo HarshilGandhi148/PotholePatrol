@@ -1,0 +1,39 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Tippecanoe",
+    "NAMELSAD": "Tippecanoe County"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -87.1,
+       40.21
+      ],
+      [
+       -86.69,
+       40.21
+      ],
+      [
+       -86.69,
+       40.56
+      ],
+      [
+       -87.1,
+       40.56
+      ],
+      [
+       -87.1,
+       40.21
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}
