@@ -48,7 +48,10 @@ public final class ObjectDetector: BasePredictor, @unchecked Sendable {
   /// (`VNCoreMLFeatureValueObservation` raw tensors, e.g. YOLO26).
   private func decodeBoxes(from request: VNRequest) -> [Box] {
     // NMS-pipelined models (YOLO11 etc.) return VNRecognizedObjectObservation
-    if let results = request.results as? [VNRecognizedObjectObservation] {
+    if let observations = request.results as? [VNRecognizedObjectObservation] {
+      let results = observations.filter {
+        !excludedClasses.contains($0.labels.first?.identifier ?? "")
+      }
       var boxes = [Box]()
       boxes.reserveCapacity(min(results.count, self.numItemsThreshold))
       for i in 0..<min(results.count, self.numItemsThreshold) {
