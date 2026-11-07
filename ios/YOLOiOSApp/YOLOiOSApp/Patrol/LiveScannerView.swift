@@ -1,10 +1,11 @@
 import AVFoundation
 import SwiftUI
 
-/// Full-screen live detection using `RecordViewController`. Potholes are kept in memory only, and nothing is sent yet.
+/// Full-screen live detection using `RecordViewController`, which reports potholes it's sure about.
 @MainActor
 struct LiveScannerView: View {
   let location: LocationService
+  let store: PatrolStore
   @Environment(\.dismiss) private var dismiss
   @State private var cameraProblem: String?
   @State private var cameraReady = false
@@ -13,7 +14,7 @@ struct LiveScannerView: View {
     ZStack {
       Color.black.ignoresSafeArea()
       if cameraReady {
-        LiveCameraSurface(location: location) { dismiss() }.ignoresSafeArea()
+        LiveCameraSurface(location: location, store: store) { dismiss() }.ignoresSafeArea()
       } else if let cameraProblem {
         VStack(spacing: 16) {
           ErrorNotice(text: cameraProblem)
@@ -57,9 +58,10 @@ struct LiveScannerView: View {
 @MainActor
 private struct LiveCameraSurface: UIViewControllerRepresentable {
   let location: LocationService
+  let store: PatrolStore
   let close: () -> Void
   func makeUIViewController(context: Context) -> RecordViewController {
-    RecordViewController(location: location, onClose: close)
+    RecordViewController(location: location, store: store, onClose: close)
   }
   func updateUIViewController(_ controller: RecordViewController, context: Context) {}
 }

@@ -130,6 +130,12 @@ public final class YOLOView: UIView, VideoCaptureDelegate {
   /// can apply the slider's value itself while still receiving weaker detections.
   public var fixedInferenceConfidence: Double?
 
+  /// Whether results include the unmodified camera frame, in `originalImage`. This costs time on every frame, so only
+  /// turn it on while a frame is needed.
+  public var capturesOriginalImage = false {
+    didSet { (videoCapture.predictor as? BasePredictor)?.capturesOriginalImage = capturesOriginalImage }
+  }
+
   /// Controls whether the built-in prediction overlays (boxes, masks, pose, classification) are drawn.
   /// When `false`, inference and the result callbacks (`delegate`, `onDetection`) keep firing, but nothing is
   /// rendered — letting consumers draw fully custom overlays. Defaults to `true`.
@@ -268,6 +274,7 @@ public final class YOLOView: UIView, VideoCaptureDelegate {
           self.setupSublayers()
           self.modelName = modelURL.deletingPathExtension().lastPathComponent
           predictor.excludedClasses = self.excludedClasses
+          predictor.capturesOriginalImage = self.capturesOriginalImage
           self.videoCapture.predictor = predictor
           predictor.setNumItemsThreshold(numItems: self.getNumItemsThreshold())
           predictor.setConfidenceThreshold(

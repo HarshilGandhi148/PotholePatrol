@@ -29,6 +29,7 @@
 		F20000000000000000000002 /* DetectionReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000002 /* DetectionReviewView.swift */; };
 		F20000000000000000000003 /* LiveScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000003 /* LiveScannerView.swift */; };
 		F20000000000000000000009 /* PhotoReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000009 /* PhotoReportView.swift */; };
+		F200000000000000000000AB /* LiveReportViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000000000000AB /* LiveReportViews.swift */; };
 		F200000000000000000000AA /* AgencyReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000000000000AA /* AgencyReportView.swift */; };
 		F20000000000000000000004 /* LocalServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000004 /* LocalServices.swift */; };
 		F20000000000000000000005 /* PatrolStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000005 /* PatrolStore.swift */; };
@@ -61,6 +62,7 @@
 		F10000000000000000000002 /* DetectionReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/DetectionReviewView.swift; sourceTree = "<group>"; };
 		F10000000000000000000003 /* LiveScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/LiveScannerView.swift; sourceTree = "<group>"; };
 		F10000000000000000000009 /* PhotoReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/PhotoReportView.swift; sourceTree = "<group>"; };
+		F100000000000000000000AB /* LiveReportViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/LiveReportViews.swift; sourceTree = "<group>"; };
 		F100000000000000000000AA /* AgencyReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/AgencyReportView.swift; sourceTree = "<group>"; };
 		F10000000000000000000004 /* LocalServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/LocalServices.swift; sourceTree = "<group>"; };
 		F10000000000000000000005 /* PatrolStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/PatrolStore.swift; sourceTree = "<group>"; };
@@ -92,6 +94,7 @@
 				F10000000000000000000004 /* LocalServices.swift */,
 				F10000000000000000000003 /* LiveScannerView.swift */,
 				F10000000000000000000009 /* PhotoReportView.swift */,
+				F100000000000000000000AB /* LiveReportViews.swift */,
 				F10000000000000000000002 /* DetectionReviewView.swift */,
 				F10000000000000000000001 /* CitizenViews.swift */,
 				F10000000000000000000000 /* AdminViews.swift */,
@@ -248,6 +251,7 @@
 				F20000000000000000000004 /* LocalServices.swift in Sources */,
 				F20000000000000000000003 /* LiveScannerView.swift in Sources */,
 				F20000000000000000000009 /* PhotoReportView.swift in Sources */,
+				F200000000000000000000AB /* LiveReportViews.swift in Sources */,
 				F20000000000000000000002 /* DetectionReviewView.swift in Sources */,
 				F20000000000000000000001 /* CitizenViews.swift in Sources */,
 				F20000000000000000000000 /* AdminViews.swift in Sources */,

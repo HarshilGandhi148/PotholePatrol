@@ -78,6 +78,14 @@ public struct GeoCoordinate: Equatable {
     self.longitude = longitude
   }
 
+  /// The distance to another point, in meters. Accurate over the short distances used here.
+  func distance(to other: GeoCoordinate) -> Double {
+    let metersPerDegree = 111_195.0
+    let north = (other.latitude - latitude) * metersPerDegree
+    let east = (other.longitude - longitude) * metersPerDegree * cos(latitude * .pi / 180)
+    return hypot(north, east)
+  }
+
   /// The point this many meters north and east. Accurate over the short distances used here.
   func offsetBy(north: Double, east: Double) -> GeoCoordinate {
     let metersPerDegree = 111_195.0

@@ -26,6 +26,8 @@ public struct TrackedDetection {
   public let className: String
   /// This frame's unsmoothed box, or `nil` while the track is being held through a missed detection.
   public let measuredRect: CGRect?
+  /// How long the tracker has been following this object, in seconds.
+  public let trackedTime: TimeInterval
 }
 
 /// Turns per-frame detections into steady boxes, so a detection that blinks in and out doesn't make its box flicker.
@@ -58,6 +60,7 @@ public final class DetectionTracker {
     let id: Int
     let classIndex: Int
     let className: String
+    let firstSeen: TimeInterval
     var rect: CGRect
     var confidence: Float
     var velocity = CGVector.zero
@@ -122,7 +125,8 @@ public final class DetectionTracker {
       guard !clipped.isNull, clipped.width > 0, clipped.height > 0 else { return nil }
       return TrackedDetection(
         id: track.id, rect: clipped, confidence: track.confidence, classIndex: track.classIndex,
-        className: track.className, measuredRect: track.measuredRect)
+        className: track.className, measuredRect: track.measuredRect,
+        trackedTime: time - track.firstSeen)
     }
   }
 
@@ -233,7 +237,7 @@ public final class DetectionTracker {
     tracks.append(
       Track(
         id: nextID, classIndex: detection.classIndex, className: detection.className,
-        rect: detection.rect, confidence: detection.confidence, strongHits: [time],
+        firstSeen: time, rect: detection.rect, confidence: detection.confidence, strongHits: [time],
         lastStrongRect: detection.rect, lastSeen: time, lastMeasuredRect: detection.rect, lastMeasuredTime: time, measuredRect: detection.rect))
     nextID += 1
     if settings.confirmations <= 1 { tracks[tracks.count - 1].isConfirmed = true }
