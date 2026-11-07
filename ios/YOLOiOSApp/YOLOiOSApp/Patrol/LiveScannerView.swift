@@ -20,12 +20,13 @@ struct LiveScannerView: View {
           Button("Open iOS Settings") {
             if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
           }
-          Button("Close") { dismiss() }.buttonStyle(.borderedProminent)
+          Button("Close") { dismiss() }.buttonStyle(PatrolPrimaryButton())
         }.padding()
       } else {
         ProgressView().tint(.white)
       }
     }
+    .preferredColorScheme(.dark).tint(PatrolTheme.accent)
     .task { await prepareCamera() }
     .onAppear {
       UIApplication.shared.isIdleTimerDisabled = true

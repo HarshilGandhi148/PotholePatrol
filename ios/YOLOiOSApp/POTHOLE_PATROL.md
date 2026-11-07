@@ -153,3 +153,47 @@ Its synthetic URLProtocol intercepts every request; it never contacts the live b
 5. Enter the passcode only in the app. Test incorrect passcode/rate-limit UI with Sanyam's coordination, protected queue, agency filters, logout, invalidated-token 401, and offline saved-token restore. Citizens must never see staff content.
 6. Coordinate one real backend status edit with the team. Confirm Fixed removes assigned work from Active and remains in History; citizen refresh sees it. Unknown-owner records must remain visible in the read-only unassigned area rather than being falsely ranked or assigned.
 7. Confirm the pending-government-report notice and absence of SeeClickFix/automatic submission. Do not submit test reports to an agency.
+
+## Minimal dark UI handoff — November 7, 2026
+
+Branch: `ui-minimal-dark`. Windows worktree: `C:\Users\aksha\Desktop\PotholePatrol\.worktrees\ui-minimal-dark`.
+Base: `3280a2c`, the latest merged native app on `origin/main` when fetched for this task. This includes the separate Live Scan / Report a Photo modes and the latest location measurements. No unmerged teammate branch was incorporated. No commit, push, PR, merge, or subsequent rebase was performed.
+
+This section describes the current UI revision; older workflow notes above predate the merged split between Live Scan and Photo Report. Live Scan retains its current in-memory detections and measurements; it does not upload a photo or record a video. Its button now says **Start / Stop**, matching that behavior. Only Photo Report retains the stationary confirmation. No stationary restriction was added to Live Scan.
+
+### Presentation changes
+
+- `Patrol/PotholePatrolRootView.swift`: exact dark palette, shared card/button/metric/empty-state styles, root dark appearance, Scan home with primary Live Scan action, compact photo/map links, actual existing connection/report state, pending-photo shortcut, grouped Settings.
+- `Patrol/CitizenViews.swift`: immersive MapKit map with floating 44-point controls, status markers and legend, compact medium/large detail sheet, report thumbnails and statuses, centered actionable empty state. Agency handoff remains pending.
+- `Patrol/PhotoReportView.swift` and `Patrol/DetectionReviewView.swift`: compact capture guidance and Photo → Location → Submit sections, bounded photo preview, explicit photo/location confirmations and unchanged retry/save/discard/upload handlers.
+- `Patrol/AdminViews.swift`: secure login, compact backend-derived metrics, Queue / Map / History / Unassigned views, preserved agency filter, backend priority and status confirmation. Staff data stays behind the existing verified session.
+- `Patrol/LiveScannerView.swift` and `SceneDelegate.swift`: themed permission fallback, translucent exit/model/status controls, blue Start action, retained confidence/phone-height controls; FPS debug text hidden. Camera, model loading, tracking, GPS/measurement math and orientation behavior are unchanged.
+
+Shared components live in the existing root view file. No new source files, third-party packages, Xcode references, deployment settings, model weights, backend sources, API routes, authentication services or persistence code were changed.
+
+### Validation and remaining Mac checks
+
+Windows checks: the existing project validator passes (10 Patrol source references, plist/model resources, citizen/admin separation). Tree-sitter parses all 13 checked Swift files without syntax errors. `git diff --check` passes. The protected SDK/model/API/store/location/project files have no diff from the branch base. These checks are **not Swift type checking or an Xcode build**. No screenshots, simulator/device layouts, live backend writes or device camera tests were run for this UI task.
+
+Before merging, open `ios/YOLOiOSApp/YOLOiOSApp.xcodeproj` on a Mac and build the `YOLOiOSApp` scheme for simulator and a signed physical iPhone. Check:
+
+1. Small iPhone (SE), standard iPhone and large iPhone layouts; default and accessibility text sizes; VoiceOver names; dark sheets, navigation/tab bars and keyboard. Check navigation back from Photo Report and from map/report details.
+2. Map pan/zoom, all three floating controls, status legend, medium/large detail sheets, empty/error/loading states and return-to-Scan actions. Use real existing reports, without seeding fake activity.
+3. Physical-device Live Scan in portrait and both landscape directions. Check exit/model/status spacing, confidence and height controls, Start/Stop, measurements, background interruption and unchanged camera lifecycle. Verify that no stationary gate or video recording was added.
+4. Photo capture, both confirmations, map/manual/fresh-GPS correction, upload failure/retry, save/discard and submitted report display using the existing backend workflow.
+5. Server-verified administrator login, failed/expired login, Keychain restoration, agency filtering, all four dashboard views, fixed confirmation and successful-response-only updates. Confirm citizen screens never reveal priority scores or editing actions.
+
+The redesign is uncommitted locally. To publish it yourself from **Windows CMD**, after reviewing the diff and Mac validation:
+
+```cmd
+cd /d "C:\Users\aksha\Desktop\PotholePatrol\.worktrees\ui-minimal-dark"
+git branch --show-current
+git status --short
+git diff --check
+git diff
+git add -- ios/YOLOiOSApp/YOLOiOSApp/Patrol/PotholePatrolRootView.swift ios/YOLOiOSApp/YOLOiOSApp/Patrol/CitizenViews.swift ios/YOLOiOSApp/YOLOiOSApp/Patrol/AdminViews.swift ios/YOLOiOSApp/YOLOiOSApp/Patrol/LiveScannerView.swift ios/YOLOiOSApp/YOLOiOSApp/Patrol/PhotoReportView.swift ios/YOLOiOSApp/YOLOiOSApp/Patrol/DetectionReviewView.swift ios/YOLOiOSApp/YOLOiOSApp/SceneDelegate.swift ios/YOLOiOSApp/POTHOLE_PATROL.md
+git commit -m "Redesign native iOS interface with a minimal dark theme"
+git push -u origin ui-minimal-dark
+```
+
+Confirm the printed branch is `ui-minimal-dark` before committing. These commands do not merge into `main`.

@@ -25,55 +25,64 @@ struct DetectionReviewView: View {
     ScrollView {
       VStack(alignment: .leading, spacing: 16) {
         if let result = store.uploadResult {
-          Label(result.isNew ? "New observation received" : "Merged with an existing pothole", systemImage: "checkmark.circle.fill").font(.headline).foregroundStyle(.green)
+          PatrolCard {
+          Label(result.isNew ? "Report received" : "Added to an existing report", systemImage: "checkmark.circle.fill").font(.headline).foregroundStyle(PatrolTheme.success)
           Text(result.pothole.title)
           StatusBadge(status: result.pothole.status)
           Text("Saved to My Reports. The public map uses the backend's current record.").font(.subheadline)
-          if !result.pothole.owner.isPublic { Text("Responsible agency not yet verified.").foregroundStyle(.secondary) }
-          Text("Government reporting is pending an updated contract. No agency has been contacted.").font(.caption).foregroundStyle(.secondary)
+          if !result.pothole.owner.isPublic { Text("Responsible agency not yet verified.").foregroundStyle(PatrolTheme.secondary) }
+          Text("Government reporting is pending an updated contract. No agency has been contacted.").font(.caption).foregroundStyle(PatrolTheme.secondary)
           NavigationLink("View public report") { PotholeDetailView(id: result.potholeId) }
-          Button("Done") { dismiss() }.buttonStyle(.borderedProminent)
+          Button("Done") { dismiss() }.buttonStyle(PatrolPrimaryButton())
+          }
         } else {
-          if let image = UIImage(data: draft.jpeg) { Image(uiImage: image).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 8)) }
-          Text("Check that this photo shows the pothole you intend to report.").font(.caption).foregroundStyle(.secondary)
+          PatrolCard {
+          Label("1 · Photo", systemImage: "photo").font(.headline)
+          if let image = UIImage(data: draft.jpeg) { Image(uiImage: image).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: 240).clipShape(RoundedRectangle(cornerRadius: 12)) }
           Text("Captured \(draft.capturedAt.formatted(date: .abbreviated, time: .standard))").font(.caption)
           Toggle("This photo shows the pothole I want to report", isOn: $photoConfirmed)
-          GroupBox("Confirm location") {
+          }
+          GroupBox("2 · Location") {
             VStack(alignment: .leading, spacing: 12) {
               Text(draft.lat == nil ? "No accurate GPS at capture. Choose the actual pothole position." : "Approximate capture GPS. Correct the position if necessary.").font(.subheadline)
               if let accuracy = draft.accuracyMeters { Text("Capture GPS accuracy: ±\(Int(accuracy)) m").font(.caption) }
-              HStack {
-                TextField("Latitude", text: $latitude).keyboardType(.numbersAndPunctuation)
-                TextField("Longitude", text: $longitude).keyboardType(.numbersAndPunctuation)
+              VStack(alignment: .leading, spacing: 8) {
+                Text("Coordinates").font(.caption).foregroundStyle(PatrolTheme.secondary)
+                TextField("Latitude", text: $latitude).keyboardType(.numbersAndPunctuation).accessibilityLabel("Latitude")
+                TextField("Longitude", text: $longitude).keyboardType(.numbersAndPunctuation).accessibilityLabel("Longitude")
               }.textFieldStyle(.roundedBorder)
-              ZStack { Map(coordinateRegion: $region); Image(systemName: "mappin.circle.fill").font(.title).foregroundStyle(.blue).allowsHitTesting(false) }.frame(height: 220).clipShape(RoundedRectangle(cornerRadius: 8))
-              Button("Use map center") { latitude = String(region.center.latitude); longitude = String(region.center.longitude); confirmed = false }
-              Button("Retry GPS") { location.retry() }
-              Text(location.message).font(.caption).foregroundStyle(.secondary)
+              ZStack { Map(coordinateRegion: $region); Image(systemName: "mappin.circle.fill").font(.title).foregroundStyle(PatrolTheme.accent).allowsHitTesting(false) }.frame(height: 200).clipShape(RoundedRectangle(cornerRadius: 12)).accessibilityLabel("Pothole location map. Move the map, then choose Use Map Center.")
+              Button("Use Map Center") { latitude = String(region.center.latitude); longitude = String(region.center.longitude); confirmed = false }.frame(minHeight: 44)
+              Button("Retry GPS") { location.retry() }.frame(minHeight: 44)
+              Text(location.message).font(.caption).foregroundStyle(PatrolTheme.secondary)
               Button("Use fresh GPS at my current position") {
                 guard let position = location.freshLocation(at: Date()) else { error = "No recent GPS within 20 m. Retry or set the coordinates manually."; return }
                 latitude = String(position.coordinate.latitude); longitude = String(position.coordinate.longitude)
                 region.center = position.coordinate; confirmed = false
-              }
-              Text("A later GPS reading is a manual correction, not the original capture location. Only use it if you are still at this pothole.").font(.caption).foregroundStyle(.secondary)
+              }.frame(minHeight: 44)
+              Text("A later GPS reading is a manual correction, not the original capture location. Only use it if you are still at this pothole.").font(.caption).foregroundStyle(PatrolTheme.secondary)
               Toggle("I confirmed the pothole's location", isOn: $confirmed)
             }
           }
-          Text("Uploads one JPEG and the confirmed coordinates/time to Pothole Patrol. No severity or repair priority is inferred.").font(.caption).foregroundStyle(.secondary)
+          PatrolCard {
+          Text("3 · Submit").font(.headline)
+          Text("Send this photo and confirmed location to Pothole Patrol.").font(.caption).foregroundStyle(PatrolTheme.secondary)
           if let error { ErrorNotice(text: error) }
           if let error = store.error { ErrorNotice(text: error) }
+          Button { saveAndUpload() } label: {
+            HStack { if store.uploading { ProgressView().tint(PatrolTheme.secondary) }; Text(store.uploading ? "Uploading…" : "Submit Report") }
+          }.buttonStyle(PatrolPrimaryButton()).disabled(!photoConfirmed || !confirmed || store.uploading || !store.configured)
           HStack {
-            Button("Discard", role: .destructive) { discard = true }.disabled(store.uploading)
+            Button("Save for later") { do { try updatePending(requireLocation: false); dismiss() } catch { self.error = error.localizedDescription } }.disabled(store.uploading)
             Spacer()
-            Button { saveAndUpload() } label: { if store.uploading { ProgressView() }; Text(store.uploading ? "Uploading…" : "Confirm & Upload") }
-              .buttonStyle(.borderedProminent).disabled(!photoConfirmed || !confirmed || store.uploading || !store.configured)
+            Button("Discard", role: .destructive) { discard = true }.disabled(store.uploading)
+          }.font(.subheadline).frame(minHeight: 44)
+          if !store.configured { Text("Add a backend in Settings to submit. You can save this photo for later.").font(.caption).foregroundStyle(PatrolTheme.secondary) }
           }
-          Button("Save for later") { do { try updatePending(requireLocation: false); dismiss() } catch { self.error = error.localizedDescription } }.disabled(store.uploading)
-          if !store.configured { Text("Configure the HTTPS backend in More → Settings before uploading. This photo can be saved on your phone meanwhile.").font(.caption).foregroundStyle(.secondary) }
         }
       }.padding()
     }
-    .navigationTitle("Review observation").navigationBarTitleDisplayMode(.inline)
+    .patrolScreen().navigationTitle("Review Report").navigationBarTitleDisplayMode(.inline)
     .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() }.disabled(store.uploading) } }
     .interactiveDismissDisabled(store.uploading)
     .confirmationDialog("Discard this captured photo?", isPresented: $discard, titleVisibility: .visible) {
