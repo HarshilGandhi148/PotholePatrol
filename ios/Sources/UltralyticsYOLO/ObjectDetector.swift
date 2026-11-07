@@ -97,8 +97,9 @@ public final class ObjectDetector: BasePredictor, @unchecked Sendable {
     var result = YOLOResult(orig_shape: inputSize, boxes: boxes, speed: 0, names: labels)
     result.speed = finishTiming(notify: false)  // before drawing: annotation is excluded from timings
     applyTimingBreakdown(&result)
-    let annotatedImage = drawYOLODetections(on: image, result: result)
-    result.annotatedImage = annotatedImage
+    if drawsAnnotations {
+      result.annotatedImage = drawYOLODetections(on: image, result: result)
+    }
     if capturesOriginalImage {
       result.originalImage = UIImage(ciImage: image)
     }

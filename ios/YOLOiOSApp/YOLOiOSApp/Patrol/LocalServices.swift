@@ -46,7 +46,7 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
     super.init(); authorization = manager.authorizationStatus; manager.delegate = self
     manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters; manager.distanceFilter = 10
   }
-  /// Continuous, precise updates for Live Scan. `stop()` returns to the battery-friendly defaults.
+  /// Continuous, precise updates while a report could be created. `stop()` returns to the battery-friendly defaults.
   func startScanning() {
     scanning = true
     manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation; manager.distanceFilter = kCLDistanceFilterNone
@@ -66,6 +66,19 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
     case .authorizedAlways, .authorizedWhenInUse: manager.requestLocation(); message = "Requesting a fresh position…"
     default: message = "Enable location in iOS Settings or choose a position manually."
     }
+  }
+  /// The position for something happening now, waiting briefly for an accurate one. If none arrives, this returns the
+  /// latest recent position, which may be less accurate, so check `horizontalAccuracy`.
+  func bestLocation(at time: Date, waitingUpTo seconds: Double) async -> CLLocation? {
+    let deadline = Date().addingTimeInterval(seconds)
+    while Date() < deadline {
+      if let accurate = freshLocation(at: Date()) { return accurate }
+      try? await Task.sleep(nanoseconds: 200_000_000)
+    }
+    guard let location, location.horizontalAccuracy >= 0,
+      abs(location.timestamp.timeIntervalSince(time)) <= 30
+    else { return nil }
+    return location
   }
   func freshLocation(at time: Date) -> CLLocation? {
     guard let location, location.horizontalAccuracy >= 0, location.horizontalAccuracy <= 20,

@@ -2,7 +2,7 @@ import Foundation
 import Combine
 import UIKit
 
-/// A pothole saved from Live Scan. It stays on the phone, and records whether it has reached the backend.
+/// A pothole saved from Live Scan or an uploaded video. It stays on the phone, and records whether it has reached the backend.
 struct LiveReport: Codable, Identifiable {
   var id = UUID()
   var serverID: String?
@@ -15,13 +15,14 @@ struct LiveReport: Codable, Identifiable {
   let lat: Double
   let lng: Double
   let capturedAt: Date
-  let widthMeters: Double
+  let widthMeters: Double?
   let lengthMeters: Double?
   let areaSquareMeters: Double?
 
   /// The current server ignores these. They're ready for when it has somewhere to store size.
   var sizeFields: [String: String] {
-    var fields = ["width_m": String(format: "%.2f", widthMeters)]
+    var fields = [String: String]()
+    if let widthMeters { fields["width_m"] = String(format: "%.2f", widthMeters) }
     if let lengthMeters { fields["length_m"] = String(format: "%.2f", lengthMeters) }
     if let areaSquareMeters { fields["area_m2"] = String(format: "%.3f", areaSquareMeters) }
     return fields
@@ -228,7 +229,7 @@ final class PatrolStore: ObservableObject {
 
   /// Saves a pothole from Live Scan as a report on this phone, then sends it to the backend.
   func reportLive(
-    photo: UIImage, coordinate: (lat: Double, lng: Double), capturedAt: Date, width: Double,
+    photo: UIImage, coordinate: (lat: Double, lng: Double), capturedAt: Date, width: Double?,
     length: Double?, area: Double?
   ) {
     liveEncoding += 1

@@ -81,7 +81,10 @@ private struct AgencyFormScreen: View {
     NavigationStack {
       VStack(spacing: 0) {
         VStack(alignment: .leading, spacing: 8) {
-          ForEach(plan.instructions ?? [], id: \.self) { Text($0).font(.caption) }
+          // Once the app has placed the location, the backend's step about pasting it no longer applies.
+          ForEach((plan.instructions ?? []).filter { !form.locationPlaced || !$0.contains("Copy location") }, id: \.self) {
+            Text($0).font(.caption)
+          }
           HStack {
             if let location { Button("Copy location") { copy(location, as: "Location copied") } }
             Button("Copy report") { copy(plan.copyText, as: "Report copied") }
@@ -102,7 +105,7 @@ private struct AgencyFormScreen: View {
           Button("I submitted it") { Task { await onSubmitted(); dismiss() } }
         }
       }
-      .task { await form.start(plan: plan, photoURL: report.photoUrl) }
+      .task { await form.start(plan: plan, photoURL: report.photoUrl, latitude: report.lat, longitude: report.lng) }
       .onDisappear { form.stop() }
     }
   }
@@ -121,17 +124,23 @@ private struct AgencyWebView: UIViewRepresentable {
 @MainActor
 private final class AgencyFormController: ObservableObject {
   @Published private(set) var status: String?
+  @Published private(set) var locationPlaced = false
   let webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+  /// Where to put the map's pin, on forms with a map.
+  private var coordinate: (latitude: Double, longitude: Double)?
   private var fields: [[String: String]] = []
   private var filled = Set<String>()
   private var photoBase64: String?
   private var timer: Timer?
 
-  func start(plan: SendPlan, photoURL: URL?) async {
+  func start(plan: SendPlan, photoURL: URL?, latitude: Double, longitude: Double) async {
     guard let url = plan.url else { return }
     if webView.url == nil { webView.load(URLRequest(url: url)) }
     guard plan.autofillReady else { status = "Use Copy report, then paste it into the form."; return }
-    // The map search can't be reached from a script, so the resident pastes the location there.
+    if plan.fields.contains(where: { $0.source == "location_search" }) {
+      coordinate = (latitude, longitude)
+    }
+    // The location goes on the map, not into a text field, and the photo is attached separately.
     fields = plan.fields.compactMap { field in
       guard field.source != "location_search", field.source != "photo_url", let value = field.value else { return nil }
       var entry = ["key": field.key, "value": value]
@@ -153,6 +162,7 @@ private final class AgencyFormController: ObservableObject {
   func stop() { timer?.invalidate(); timer = nil }
 
   func fillNow() {
+    placeLocation()
     let remaining = fields.filter { !filled.contains($0["key"] ?? "") }
     guard !remaining.isEmpty || photoBase64 != nil,
       let data = try? JSONSerialization.data(withJSONObject: remaining),
@@ -161,6 +171,19 @@ private final class AgencyFormController: ObservableObject {
     let photo = photoBase64.map { "\"\($0)\"" } ?? "null"
     webView.evaluateJavaScript("(\(Self.fillScript))(\(json), \(photo))") { [weak self] result, _ in
       Task { @MainActor in self?.received(result) }
+    }
+  }
+
+  /// Moves the form's map to the report's location, once, as soon as its map is ready.
+  private func placeLocation() {
+    guard let coordinate, !locationPlaced else { return }
+    let call = "(\(Self.placeLocationScript))(\(coordinate.latitude), \(coordinate.longitude))"
+    webView.evaluateJavaScript(call) { [weak self] result, _ in
+      Task { @MainActor in
+        guard let self, result as? Bool == true else { return }
+        self.locationPlaced = true
+        self.status = "Location set from this report. Check the pin, then tap Confirm Location. If it stays grey, tap the map at the pothole."
+      }
     }
   }
 
@@ -173,6 +196,39 @@ private final class AgencyFormController: ObservableObject {
     }
     if filled.count == fields.count && photoBase64 == nil { stop() }
   }
+
+  /// Presses the map's Find my location button, answering it with the report's coordinates just for this press, so the
+  /// map shows the report's location. Its button sits inside shadow DOM, which plain selectors can't reach. Returns
+  /// whether the map was ready. Nothing here confirms the location or submits the form.
+  private static let placeLocationScript = """
+    function (latitude, longitude) {
+      const find = (root, selector) => {
+        for (const element of root.querySelectorAll('*')) {
+          if (element.matches(selector)) return element;
+          const found = element.shadowRoot && find(element.shadowRoot, selector);
+          if (found) return found;
+        }
+        return null;
+      };
+      const host = find(document, '[aria-label="Find my location"]');
+      if (!host || !find(document, 'canvas')) return false;
+      const button = host.tagName === 'BUTTON' ? host : host.shadowRoot && host.shadowRoot.querySelector('button');
+      if (!button) return false;
+      const position = () => ({
+        coords: { latitude, longitude, accuracy: 5, altitude: null, altitudeAccuracy: null, heading: null, speed: null },
+        timestamp: Date.now()
+      });
+      const geolocation = {
+        getCurrentPosition: (success) => setTimeout(() => success(position()), 0),
+        watchPosition: (success) => { setTimeout(() => success(position()), 0); return 1; },
+        clearWatch: () => {}
+      };
+      Object.defineProperty(navigator, 'geolocation', { get: () => geolocation, configurable: true });
+      button.click();
+      setTimeout(() => { delete navigator.geolocation; }, 5000);
+      return true;
+    }
+    """
 
   /// Sets values the way a person typing would, so the page's own scripts see them. Never clicks anything.
   private static let fillScript = """

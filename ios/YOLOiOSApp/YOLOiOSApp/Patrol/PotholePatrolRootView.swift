@@ -131,6 +131,9 @@ struct ScanModesView: View {
         NavigationLink { PhotoReportView(location: location) } label: {
           actionRow("Report a Photo", symbol: "camera", detail: "Capture a pothole manually.")
         }
+        NavigationLink { VideoScanView(location: location) } label: {
+          actionRow("Upload a Video", symbol: "film", detail: "Find potholes in a video from your photos.")
+        }
         Button(action: exploreMap) { actionRow("Explore Map", symbol: "map", detail: "View reported road damage.") }
         if let observation = store.pending {
           Button { pending = observation } label: {

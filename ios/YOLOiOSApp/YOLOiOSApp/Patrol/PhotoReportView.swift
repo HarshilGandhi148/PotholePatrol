@@ -12,6 +12,7 @@ struct PhotoReportView: View {
   @State private var showingCamera = false
   @State private var observation: PendingObservation?
   @State private var error: String?
+  @State private var gettingLocation = false
 
   /// Above this speed, in meters per second, the person isn't stationary.
   private let maximumSpeed = 2.0
@@ -21,7 +22,7 @@ struct PhotoReportView: View {
       VStack(alignment: .leading, spacing: 16) {
         PatrolCard {
           Label("A photo. A location. A report.", systemImage: "camera").font(.headline)
-          Text("Take a clear photo, confirm its location, then submit.").font(.subheadline).foregroundStyle(PatrolTheme.secondary)
+          Text("Take a clear photo. Your location is added automatically, and you can correct it before you submit.").font(.subheadline).foregroundStyle(PatrolTheme.secondary)
         }
         PatrolCard {
         if let pending = store.pending {
@@ -33,9 +34,10 @@ struct PhotoReportView: View {
           Text("Stay safely away from traffic.").font(.subheadline).foregroundStyle(PatrolTheme.secondary)
           Toggle("I am stationary and safely away from traffic", isOn: $stationary).font(.subheadline)
           Button { takePhoto() } label: { Label("Take Photo", systemImage: "camera.fill") }
-            .buttonStyle(PatrolPrimaryButton()).disabled(!stationary)
+            .buttonStyle(PatrolPrimaryButton()).disabled(!stationary || gettingLocation)
         }
         }
+        if gettingLocation { ProgressView("Getting your location…") }
         Label(location.message, systemImage: "location").font(.caption).foregroundStyle(PatrolTheme.secondary)
         if let error { ErrorNotice(text: error) }
         Button("Open iOS permission settings") {
@@ -50,10 +52,13 @@ struct PhotoReportView: View {
         captured(image)
       }.ignoresSafeArea()
     }
-    .sheet(item: $observation) { observation in
+    // The review screen stops location updates when it closes, so start them again for the next photo.
+    .sheet(item: $observation, onDismiss: { location.startScanning() }) { observation in
       NavigationStack { DetectionReviewView(observation: observation, location: location) }.environmentObject(store)
     }
-    .onAppear { location.retry() }
+    .onAppear { location.startScanning() }
+    // This also fires while the camera or review screen covers this one, which still need location.
+    .onDisappear { if !showingCamera && !gettingLocation && observation == nil { location.stop() } }
   }
 
   private func takePhoto() {
@@ -71,8 +76,6 @@ struct PhotoReportView: View {
       error = "Camera access is denied. Enable it in iOS Settings."
     default:
       error = nil
-      // A stationary phone gets no new location updates, so ask for a fresh position for this photo.
-      location.retry()
       showingCamera = true
     }
   }
@@ -80,18 +83,22 @@ struct PhotoReportView: View {
   private func captured(_ image: UIImage?) {
     guard let image else { return }  // The person cancelled.
     let time = Date()
-    let position = location.freshLocation(at: time)
-    do {
-      let draft = PendingObservation(
-        id: UUID(), capturedAt: time, lat: position?.coordinate.latitude, lng: position?.coordinate.longitude,
-        accuracyMeters: position?.horizontalAccuracy, locationConfirmed: false,
-        jpeg: try ObservationStorage.jpeg(from: image), backendURL: nil)
-      do { try store.retain(draft) } catch {
-        self.error = "Photo is in memory, but could not be saved on this device. Keep the review open and retry."
+    gettingLocation = true
+    Task {
+      let position = await location.bestLocation(at: time, waitingUpTo: 8)
+      gettingLocation = false
+      do {
+        let draft = PendingObservation(
+          id: UUID(), capturedAt: time, lat: position?.coordinate.latitude, lng: position?.coordinate.longitude,
+          accuracyMeters: position?.horizontalAccuracy, locationConfirmed: false,
+          jpeg: try ObservationStorage.jpeg(from: image), backendURL: nil)
+        do { try store.retain(draft) } catch {
+          self.error = "Photo is in memory, but could not be saved on this device. Keep the review open and retry."
+        }
+        observation = draft
+      } catch {
+        self.error = error.localizedDescription
       }
-      observation = draft
-    } catch {
-      self.error = error.localizedDescription
     }
   }
 }

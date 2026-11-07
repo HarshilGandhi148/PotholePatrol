@@ -24,7 +24,7 @@ struct LiveReportRow: View {
           .clipShape(RoundedRectangle(cornerRadius: 10))
       }
       VStack(alignment: .leading, spacing: 4) {
-        Text(report.title ?? "Pothole from Live Scan").font(.subheadline.weight(.semibold))
+        Text(report.title ?? "Saved pothole").font(.subheadline.weight(.semibold))
         Text(report.statusText).font(.caption).foregroundStyle(report.rejection == nil ? PatrolTheme.secondary : PatrolTheme.error)
         Text(report.capturedAt.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(PatrolTheme.secondary)
       }
@@ -44,7 +44,7 @@ struct LiveReportDetailView: View {
     ScrollView {
       if let report = store.liveReports.first(where: { $0.id == id }) { content(report).padding() }
     }
-    .patrolScreen().navigationTitle("Live Scan report").navigationBarTitleDisplayMode(.inline)
+    .patrolScreen().navigationTitle("Saved report").navigationBarTitleDisplayMode(.inline)
     .confirmationDialog("Delete this report and its photo from this phone?", isPresented: $confirmDelete, titleVisibility: .visible) {
       Button("Delete", role: .destructive) {
         store.deleteLiveReport(id: id)
@@ -60,12 +60,16 @@ struct LiveReportDetailView: View {
       if let image = report.image {
         Image(uiImage: image).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 8))
       }
-      Text(report.title ?? "Pothole from Live Scan").font(.title3.bold())
+      Text(report.title ?? "Saved pothole").font(.title3.bold())
       Text(report.capturedAt.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(PatrolTheme.secondary)
       GroupBox("Estimated size") {
         VStack(alignment: .leading, spacing: 6) {
           if let area = report.areaText { Text("Area \(area)").font(.headline) }
-          LabeledContent("Width", value: String(format: "%.0f in", report.widthMeters * 39.3701))
+          if let width = report.widthMeters {
+            LabeledContent("Width", value: String(format: "%.0f in", width * 39.3701))
+          } else {
+            Text("Not measured").font(.subheadline).foregroundStyle(PatrolTheme.secondary)
+          }
           if let length = report.lengthMeters {
             LabeledContent("Length", value: String(format: "%.0f in", length * 39.3701))
           }
