@@ -10,6 +10,21 @@ import UltralyticsYOLO
 final class VideoScanModel: ObservableObject {
   enum Stage { case choosing, processing, finished }
 
+  /// How fast the video plays while it's processed. It only changes the pace, not what's found.
+  enum Speed: Double, CaseIterable, Identifiable {
+    case half = 0.5, normal = 1, faster = 1.5, fastest = 0
+    var id: Double { rawValue }
+    var title: String {
+      switch self {
+      case .half: return "0.5×"
+      case .normal: return "1×"
+      case .faster: return "1.5×"
+      case .fastest: return "Fastest"
+      }
+    }
+  }
+
+  @Published var speed = Speed.faster
   @Published private(set) var stage = Stage.choosing
   @Published private(set) var videoName: String?
   @Published private(set) var preparingVideo = false
@@ -88,6 +103,8 @@ final class VideoScanModel: ObservableObject {
     await setCreationDate(reader.creationDate)
     let scanner = VideoPotholeScanner(height: height, tiltDegrees: tilt)
     let context = CIContext()
+    // When a frame is due on screen, from the wall-clock time and video time at which the current speed took effect.
+    var clock: (start: Date, videoTime: TimeInterval, speed: Double)?
 
     while !Task.isCancelled, let frame = reader.nextFrame() {
       // Autorelease each frame, or a long video's frames pile up in memory until the loop ends.
@@ -103,6 +120,16 @@ final class VideoScanModel: ObservableObject {
         return (context.createCGImage(frame.image, from: frame.image.extent), boxes, scanner.potholes)
       }
       let progress = reader.duration > 0 ? min(frame.time / reader.duration, 1) : 0
+      let speed = await MainActor.run { self.speed.rawValue }
+      if speed > 0 {
+        if clock?.speed != speed { clock = (Date(), frame.time, speed) }
+        if let clock {
+          let wait = clock.start.addingTimeInterval((frame.time - clock.videoTime) / speed).timeIntervalSinceNow
+          if wait > 0 { try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000)) }
+        }
+      } else {
+        clock = nil
+      }
       await show(preview: update.0, boxes: update.1, potholes: update.2, progress: progress)
     }
   }
@@ -193,19 +220,40 @@ struct VideoScanView: View {
     .confirmationDialog("Leave without saving these potholes?", isPresented: $confirmLeave, titleVisibility: .visible) {
       Button("Leave without saving", role: .destructive) { dismiss() }
     }
-    .onAppear { location.retry() }
+    .onAppear { location.startScanning() }
+    // Keep the map on the person until they move it, so a slow first GPS fix still lands it in the right place.
     .onReceive(location.$location) { position in
-      // Start the map where the person is, once, until they've chosen a video.
-      guard let position, model.videoName == nil, !centeredOnPerson else { return }
-      centeredOnPerson = true
-      region.center = position.coordinate
-      region.span = MKCoordinateSpan(latitudeDelta: 0.004, longitudeDelta: 0.004)
+      guard followingLocation, model.stage == .choosing, let position, position.horizontalAccuracy >= 0,
+        position.horizontalAccuracy <= 100
+      else { return }
+      center(on: position.coordinate)
     }
+    .onChange(of: region.center.latitude) { _ in noticeMapMove() }
+    .onChange(of: region.center.longitude) { _ in noticeMapMove() }
     // The model can't run in the background, so end the scan and keep what it found.
     .onChange(of: scenePhase) { phase in if phase != .active { model.stop() } }
-    .onDisappear { model.stop() }
+    .onDisappear {
+      model.stop()
+      location.stop()
+    }
   }
-  @State private var centeredOnPerson = false
+  @State private var followingLocation = true
+  /// Where the app last put the map, to tell its own moves apart from the person's.
+  @State private var automaticCenter: CLLocationCoordinate2D?
+  /// Close enough to see the road, about 150 m across.
+  private let streetSpan = MKCoordinateSpan(latitudeDelta: 0.0014, longitudeDelta: 0.0014)
+
+  private func center(on coordinate: CLLocationCoordinate2D) {
+    automaticCenter = coordinate
+    region = MKCoordinateRegion(center: coordinate, span: streetSpan)
+  }
+
+  private func noticeMapMove() {
+    guard followingLocation, let automaticCenter else { return }
+    let moved = abs(region.center.latitude - automaticCenter.latitude) > 0.00001
+      || abs(region.center.longitude - automaticCenter.longitude) > 0.00001
+    if moved { followingLocation = false }
+  }
 
   private var chooseVideo: some View {
     VStack(alignment: .leading, spacing: 16) {
@@ -222,14 +270,22 @@ struct VideoScanView: View {
       }
       GroupBox("2 · Where was it filmed?") {
         VStack(alignment: .leading, spacing: 10) {
-          Text("Move the map so the pin is on the road. Every pothole found gets this location.")
+          Text("The map starts at your location. Drag it so the pin is on the road where you filmed. Every pothole found gets this location.")
             .font(.subheadline).foregroundStyle(PatrolTheme.secondary)
           ZStack {
             Map(coordinateRegion: $region)
             Image(systemName: "mappin.circle.fill").font(.title).foregroundStyle(PatrolTheme.accent).allowsHitTesting(false)
-          }.frame(height: 240).clipShape(RoundedRectangle(cornerRadius: 12))
+          }.frame(height: 280).clipShape(RoundedRectangle(cornerRadius: 12))
           Text(String(format: "%.5f, %.5f", region.center.latitude, region.center.longitude))
             .font(.caption).monospacedDigit().foregroundStyle(PatrolTheme.secondary)
+          Label(followingLocation ? "Following your location · \(location.message)" : "Set by you", systemImage: followingLocation ? "location.fill" : "hand.draw")
+            .font(.caption).foregroundStyle(PatrolTheme.secondary)
+          if !followingLocation {
+            Button {
+              followingLocation = true
+              if let position = location.location { center(on: position.coordinate) }
+            } label: { Label("Use My Location", systemImage: "location") }.buttonStyle(.bordered)
+          }
         }
       }
       GroupBox("3 · How was it filmed?") {
@@ -250,6 +306,9 @@ struct VideoScanView: View {
   private var processing: some View {
     VStack(alignment: .leading, spacing: 12) {
       videoPreview
+      Picker("Playback speed", selection: $model.speed) {
+        ForEach(VideoScanModel.Speed.allCases) { Text($0.title).tag($0) }
+      }.pickerStyle(.segmented)
       ProgressView(value: model.progress) { Text("Finding potholes…").font(.subheadline) }
       Label("\(model.potholes.count) found so far", systemImage: "viewfinder").font(.subheadline)
       Button("Stop") { model.stop() }.buttonStyle(.bordered)
