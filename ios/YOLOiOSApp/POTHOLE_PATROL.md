@@ -23,7 +23,8 @@ The previous frontend checkout remains on its original branch. This work is **lo
 | `Patrol/LiveScannerView.swift` | Live Scan: full-screen presentation, camera authorization, keeping the screen awake |
 | `Patrol/PhotoReportView.swift` | Report a Photo: stationary confirmation, plain iOS camera with no detection, capture location |
 | `Patrol/DetectionReviewView.swift` | Still evidence review, original timestamp, explicit GPS/manual-map correction, upload/retry/save/discard |
-| `Patrol/CitizenViews.swift` | Native public MapKit map, public detail, local-ID My Reports, modular pending-government-report notice |
+| `Patrol/CitizenViews.swift` | Native public MapKit map, public detail, local-ID My Reports |
+| `Patrol/AgencyReportView.swift` | Report section, WKWebView agency form, Fishers autofill, copy text, I submitted it |
 | `Patrol/AdminViews.swift` | Secure sign-in, ranked operations queue, history, agency filter, map, read-only unassigned observations, confirmed status updates |
 | `Patrol/PotholeModels.swift` | Documented snake_case DTOs with nullable fields and backend priority breakdown |
 | `Patrol/PotholeAPI.swift` | HTTPS-only configuration, ngrok header, multipart JPEG request, exact routes, typed decoding/errors, no redirect forwarding |
@@ -97,7 +98,7 @@ After success, only the returned pothole ID is retained for My Reports, scoped t
 | `POST /officials/verify` | SecureField passcode; requires verified:true and a token, then a successful protected queue request before opening operations. |
 | `GET /queue` | Official token required. Backend order and backend score/breakdown; fixed entries filtered out defensively. |
 | `PATCH /potholes/{id}/status` | Official token required; lower-case status; fixed confirmation; displayed status changes only after server success, followed by queue refresh. |
-| `POST /potholes/{id}/send` | Existing contract represented only in the service/DTO layer. **No citizen UI calls it. Government handoff is disabled pending updated requirements.** |
+| `POST /potholes/{id}/send` | Called from the report screen when the resident taps **I submitted it**. It records the report and sends nothing to the agency. |
 
 DTOs follow the backend's `.convertFromSnakeCase` names (`photoUrl`, `agencyId`, etc.) and UTC ISO-8601 dates without fractions. Public requests have no official token. Protected requests add only `X-Official-Token`. URLSession uses ephemeral transport and rejects redirects to avoid forwarding credentials or photo bodies. No ATS bypass is added. HTTP errors preserve their status; wrong-passcode, rate-limit, unavailable authentication, validation, and connectivity failures show actionable errors.
 
@@ -111,7 +112,7 @@ After a successful patch, local shared state uses the returned record, the authe
 
 ## Updated government and jurisdiction decisions
 
-SeeClickFix handoff has been discontinued. The app does not open legacy agency links, autofill forms, collect agency passwords, offer "I submitted it", or call /send from the UI. `GovernmentReportingNotice` is the small replacement point when an updated contract exists. Sanyam should confirm the replacement reporting workflow before enabling it.
+Reporting follows the backend `send_plan` in `Patrol/AgencyReportView.swift`. The app opens the agency page in WKWebView, fills what it can, and the resident taps the agency's own Submit. Only Fishers has `autofill_ready` true today. The app never submits for the resident. See `backend.md`.
 
 Indianapolis/Fishers is the default map area, but ownership expansion to Marion/Hamilton County is **not assumed**. Unknown/private owner fields stay nullable. Unverified metro observations remain visible on the public map and in the staff unassigned view; no DPW/Fishers/INDOT ownership is invented. The current backend may exclude these observations from `/queue`, even after upload.
 
@@ -152,4 +153,4 @@ Its synthetic URLProtocol intercepts every request; it never contacts the live b
 4. Turn off connectivity after capture; retry/relaunch and confirm the original photo/time survive. Verify successful cleanup and explicit discard. Confirm changing backend cannot replay a queued observation to another server.
 5. Enter the passcode only in the app. Test incorrect passcode/rate-limit UI with Sanyam's coordination, protected queue, agency filters, logout, invalidated-token 401, and offline saved-token restore. Citizens must never see staff content.
 6. Coordinate one real backend status edit with the team. Confirm Fixed removes assigned work from Active and remains in History; citizen refresh sees it. Unknown-owner records must remain visible in the read-only unassigned area rather than being falsely ranked or assigned.
-7. Confirm the pending-government-report notice and absence of SeeClickFix/automatic submission. Do not submit test reports to an agency.
+7. Open the Fishers report flow on a real iPhone and stop before Submit. Do not submit test reports to an agency.
