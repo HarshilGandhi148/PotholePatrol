@@ -24,6 +24,15 @@
 		737AB2A22E3E6418003FA92B /* ExternalSceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 737AB29A2E3E6418003FA92B /* ExternalSceneDelegate.swift */; };
 		73D95D162D45DA510050E640 /* ModelDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D95D152D45DA510050E640 /* ModelDownloadManager.swift */; };
 		73D95D1B2D45DB800050E640 /* RemoteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D95D1A2D45DB800050E640 /* RemoteModels.swift */; };
+		F20000000000000000000000 /* AdminViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000000 /* AdminViews.swift */; };
+		F20000000000000000000001 /* CitizenViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000001 /* CitizenViews.swift */; };
+		F20000000000000000000002 /* DetectionReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000002 /* DetectionReviewView.swift */; };
+		F20000000000000000000003 /* LiveScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000003 /* LiveScannerView.swift */; };
+		F20000000000000000000004 /* LocalServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000004 /* LocalServices.swift */; };
+		F20000000000000000000005 /* PatrolStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000005 /* PatrolStore.swift */; };
+		F20000000000000000000006 /* PotholeAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000006 /* PotholeAPI.swift */; };
+		F20000000000000000000007 /* PotholeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000007 /* PotholeModels.swift */; };
+		F20000000000000000000008 /* PotholePatrolRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000008 /* PotholePatrolRootView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -45,6 +54,15 @@
 		73D95D152D45DA510050E640 /* ModelDownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDownloadManager.swift; sourceTree = "<group>"; };
 		73D95D1A2D45DB800050E640 /* RemoteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteModels.swift; sourceTree = "<group>"; };
 		7BCB411721C3096100BFC4D0 /* YOLOiOSApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YOLOiOSApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F10000000000000000000000 /* AdminViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/AdminViews.swift; sourceTree = "<group>"; };
+		F10000000000000000000001 /* CitizenViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/CitizenViews.swift; sourceTree = "<group>"; };
+		F10000000000000000000002 /* DetectionReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/DetectionReviewView.swift; sourceTree = "<group>"; };
+		F10000000000000000000003 /* LiveScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/LiveScannerView.swift; sourceTree = "<group>"; };
+		F10000000000000000000004 /* LocalServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/LocalServices.swift; sourceTree = "<group>"; };
+		F10000000000000000000005 /* PatrolStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/PatrolStore.swift; sourceTree = "<group>"; };
+		F10000000000000000000006 /* PotholeAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/PotholeAPI.swift; sourceTree = "<group>"; };
+		F10000000000000000000007 /* PotholeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/PotholeModels.swift; sourceTree = "<group>"; };
+		F10000000000000000000008 /* PotholePatrolRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patrol/PotholePatrolRootView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,6 +80,15 @@
 		636EFC9B21E62DD300DE43BC /* YOLOiOSApp */ = {
 			isa = PBXGroup;
 			children = (
+				F10000000000000000000008 /* PotholePatrolRootView.swift */,
+				F10000000000000000000007 /* PotholeModels.swift */,
+				F10000000000000000000006 /* PotholeAPI.swift */,
+				F10000000000000000000005 /* PatrolStore.swift */,
+				F10000000000000000000004 /* LocalServices.swift */,
+				F10000000000000000000003 /* LiveScannerView.swift */,
+				F10000000000000000000002 /* DetectionReviewView.swift */,
+				F10000000000000000000001 /* CitizenViews.swift */,
+				F10000000000000000000000 /* AdminViews.swift */,
 				73EF45A02E3E6418003FA92B /* ExternalDisplay */,
 				737AB29D2E3E6418003FA92B /* SceneDelegate.swift */,
 				636EFCA721E62DD300DE43BC /* AppDelegate.swift */,
@@ -115,7 +142,6 @@
 			buildConfigurationList = 7BCB412921C3096200BFC4D0 /* Build configuration list for PBXNativeTarget "YOLOiOSApp" */;
 			buildPhases = (
 				63F890A422A1723300072C38 /* ShellScript */,
-				734DA0AD2E10000000000001 /* Download YOLO Models */,
 				7BCB411321C3096100BFC4D0 /* Sources */,
 				7BCB411421C3096100BFC4D0 /* Frameworks */,
 				7BCB411521C3096100BFC4D0 /* Resources */,
@@ -177,7 +203,6 @@
 				63CF37202514455300E2DEA1 /* Main.storyboard in Resources */,
 				63CF37212514455300E2DEA1 /* ultralytics_yolo_logotype.png in Resources */,
 				63CF371F2514455300E2DEA1 /* LaunchScreen.storyboard in Resources */,
-				633BC6FB22EDE73D00821BCA /* Settings.bundle in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -202,25 +227,6 @@
 			shellPath = /bin/sh;
 			shellScript = "# Bump CFBundleVersion on archive builds only, so regular builds don't dirty the working tree.\nif [ \"$ACTION\" != \"install\" ]; then exit 0; fi\nbuildNumber=$(/usr/libexec/PlistBuddy -c \"Print CFBundleVersion\" \"${PROJECT_DIR}/${INFOPLIST_FILE}\")\nbuildNumber=$(($buildNumber + 1))\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $buildNumber\" \"${PROJECT_DIR}/${INFOPLIST_FILE}\"\n";
 		};
-		734DA0AD2E10000000000001 /* Download YOLO Models */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Download YOLO Models";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/bash;
-			shellScript = "# Auto-download the seven nano YOLO26 models into Models/ so the app ships with them (see scripts/download-models.sh).\n# Skipped on GitHub Actions CI (which runs the same script in its own step); local and App Store/archive builds bundle the models.\nif [ \"$GITHUB_ACTIONS\" = \"true\" ]; then echo \"note: GitHub Actions CI detected, skipping YOLO model download\"; exit 0; fi\nbash \"${SRCROOT}/../scripts/download-models.sh\"\n";
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -228,6 +234,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F20000000000000000000008 /* PotholePatrolRootView.swift in Sources */,
+				F20000000000000000000007 /* PotholeModels.swift in Sources */,
+				F20000000000000000000006 /* PotholeAPI.swift in Sources */,
+				F20000000000000000000005 /* PatrolStore.swift in Sources */,
+				F20000000000000000000004 /* LocalServices.swift in Sources */,
+				F20000000000000000000003 /* LiveScannerView.swift in Sources */,
+				F20000000000000000000002 /* DetectionReviewView.swift in Sources */,
+				F20000000000000000000001 /* CitizenViews.swift in Sources */,
+				F20000000000000000000000 /* AdminViews.swift in Sources */,
 				73D95D162D45DA510050E640 /* ModelDownloadManager.swift in Sources */,
 				73D95D1B2D45DB800050E640 /* RemoteModels.swift in Sources */,
 				636EFCB321E62DD300DE43BC /* AppDelegate.swift in Sources */,
@@ -380,7 +395,7 @@
 				CURRENT_PROJECT_VERSION = 0;
 				DEVELOPMENT_TEAM = 7V4Y89SMHP;
 				INFOPLIST_FILE = YOLOiOSApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Ultralytics YOLO";
+				INFOPLIST_KEY_CFBundleDisplayName = "Pothole Patrol";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -409,7 +424,7 @@
 				CURRENT_PROJECT_VERSION = 0;
 				DEVELOPMENT_TEAM = 7V4Y89SMHP;
 				INFOPLIST_FILE = YOLOiOSApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Ultralytics YOLO";
+				INFOPLIST_KEY_CFBundleDisplayName = "Pothole Patrol";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
