@@ -1,0 +1,25 @@
+{
+  "MLModelVersionStringKey" : "8.4.204",
+  "MLModelDescriptionKey" : "Ultralytics best model trained on \/home\/neural_debugger\/Downloads\/datasets\/ObjectDetectionDatasets\/RDD2022\/yolo_dataset\/data.yaml",
+  "MLModelCreatorDefinedKey" : {
+    "batch" : "1",
+    "head" : "Detect",
+    "com.github.apple.coremltools.version" : "9.0",
+    "docs" : "https:\/\/docs.ultralytics.com",
+    "imgsz" : "[640, 640]",
+    "names" : "{0: 'longitudinal_crack', 1: 'transverse_crack', 2: 'alligator_crack', 3: 'pothole'}",
+    "channels" : "3",
+    "com.github.apple.coremltools.conversion_date" : "2026-11-07",
+    "stride" : "32",
+    "date" : "2026-11-07T11:09:58.269675-05:00",
+    "args" : "{'batch': 1, 'quantize': 16, 'nms': True, 'dynamic': False}",
+    "IoU threshold" : "0.7",
+    "com.github.apple.coremltools.source_dialect" : "TorchScript",
+    "com.github.apple.coremltools.source" : "torch==2.15.0",
+    "Confidence threshold" : "0.25",
+    "task" : "detect",
+    "end2end" : "False"
+  },
+  "MLModelAuthorKey" : "Ultralytics",
+  "MLModelLicenseKey" : "AGPL-3.0 License (https:\/\/ultralytics.com\/license)"
+}
