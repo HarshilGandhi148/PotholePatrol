@@ -10,8 +10,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    UIApplication.shared.isIdleTimerDisabled = true
-    ExternalDisplayManager.registerDefaults()
     return true
   }
 
@@ -20,20 +18,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     configurationForConnecting connectingSceneSession: UISceneSession,
     options: UIScene.ConnectionOptions
   ) -> UISceneConfiguration {
+    // Use ordinary mirroring for external screens. The legacy dedicated scene creates its own camera.
     if connectingSceneSession.role.isExternalDisplay {
-      guard ExternalDisplayManager.isDedicatedModeEnabled else {
-        return UISceneConfiguration(
-          name: nil,
-          sessionRole: connectingSceneSession.role
-        )
-      }
-
-      let configuration = UISceneConfiguration(
-        name: "External Display Configuration",
-        sessionRole: connectingSceneSession.role
-      )
-      configuration.delegateClass = ExternalSceneDelegate.self
-      return configuration
+      return UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
     }
 
     return UISceneConfiguration(
