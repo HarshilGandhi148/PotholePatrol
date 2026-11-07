@@ -11,6 +11,7 @@
 import CoreGraphics
 import Foundation
 import UIKit
+import simd
 
 /// The complete output of a single YOLO inference, with optional task-specific fields populated as needed.
 ///
@@ -71,6 +72,10 @@ public struct YOLOResult: @unchecked Sendable {
 
   /// Array of class label names used by the model.
   public var names: [String]
+
+  /// The camera's intrinsic matrix for this frame, for live camera results. It may describe a larger or differently
+  /// rotated image than `orig_shape`, so convert it with `CameraIntrinsics.matched(to:)`.
+  public var cameraIntrinsics: simd_float3x3? = nil
 
   /// An empty result with zeroed metrics, used as a default return value before inference runs.
   public static let empty = YOLOResult(orig_shape: .zero, boxes: [], speed: 0, names: [])
