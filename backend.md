@@ -468,11 +468,11 @@ Follow `send_plan.method`:
 
 | Page | What happens | Filled by |
 |---|---|---|
-| 1. Location | Open the search, enter `location_search`, then the resident checks the pin and taps Confirm Location | App, then resident |
+| 1. Location | The app copies `location_search`. The resident pastes it into the map search, checks the pin and taps Confirm Location. A script can't reach that search box. | Resident |
 | 2. Details | Issue Title (required), Description, name and phone, Image | App |
 | 3. Last page | The resident chooses **Guest** and taps Submit. No account is needed. | Resident |
 
-The Address Search control has to be tapped before its text box exists. Confirm Location stays disabled until the map has a valid pin. On page 1, if `location_search` finds nothing, ask the resident to place the pin themselves.
+Confirm Location stays disabled until the map has a valid pin. If `location_search` finds nothing, ask the resident to place the pin themselves.
 
 **Filling a field by label.** Plain `input.value = x` doesn't work on this form, because it's a script-driven page. Use the native setter and fire an `input` event:
 
