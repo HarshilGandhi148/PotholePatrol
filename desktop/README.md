@@ -1,6 +1,6 @@
 # PotholePatrol: computer version
 
-`webcam.py` opens your webcam and draws live boxes around road damage (longitudinal, transverse and alligator cracks, plus potholes) using a pretrained YOLOv8 model. Each box shows the class name and confidence, potholes are red, and the FPS is shown in the corner.
+`webcam.py` opens your webcam and draws live boxes around alligator cracks and potholes, using the same Core ML model as the iPhone app (macOS only). Each box shows the class name and confidence, potholes are red, and the FPS is shown in the corner. Longitudinal and transverse cracks are hidden, as they are in the app.
 
 ## Setup and run
 
@@ -14,9 +14,17 @@ pip install -r requirements.txt
 python webcam.py
 ```
 
-The first run downloads the weights (about 50 MB). Later runs use the Hugging Face cache.
-
 Press `q` or Esc to quit.
+
+## Checking photos
+
+```bash
+python webcam.py --images ../data
+```
+
+This prints what was found in each image and saves copies with boxes to `../runs/images`. Convert iPhone HEIC photos first, even if they are named `.png`: `sips -s format jpeg NAME.png --out NAME.jpg`.
+
+Use this rather than `yolo predict`, which shrinks large photos with a rougher resize that can change the predicted crack type.
 
 ## Settings
 
@@ -25,9 +33,10 @@ Change the defaults in the `SETTINGS` block at the top of `webcam.py`, or overri
 | Setting | Flag | Default | Description |
 | --- | --- | --- | --- |
 | `CAMERA` | `--camera` | `0` | Camera index |
-| `CONFIDENCE` | `--conf` | `0.25` | Confidence threshold, from 0 to 1 |
-| `IMAGE_SIZE` | `--imgsz` | `640` | Pixels the model sees: lower is faster, higher finds smaller damage |
-| `MODEL` | `--model` | `dronefreak/rdd2022-yolov8m` | Hugging Face repo containing a `best.pt` |
+| `CONFIDENCE` | `--conf` | `0.25` | Confidence threshold, from 0 to 1. Values below 0.25 have no effect on the iPhone model |
+| `IMAGE_SIZE` | `--imgsz` | `640` | Pixels the model sees. Keep at 640 for the iPhone model |
+| `MODEL` | `--model` | `../ios/YOLOiOSApp/Models/Detect/best.mlpackage` | Local model path, or a Hugging Face repo containing a `best.pt` |
+| `HIDDEN_CLASSES` | | `longitudinal_crack`, `transverse_crack` | Classes that are never drawn |
 
 ## Camera permission on macOS
 
