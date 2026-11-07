@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "source": "ios_coreml",
+  "sessionId": "contract-example-only-001",
+  "detections": [
+    {
+      "id": "example-pothole-001",
+      "className": "pothole",
+      "confidence": 0.87,
+      "capturedAt": "2026-11-07T12:15:00-05:00",
+      "frameTimestampMs": 2400,
+      "boundingBox": {"x": 0.31, "y": 0.54, "width": 0.22, "height": 0.17},
+      "location": null,
+      "imageUrl": null
+    },
+    {
+      "id": "example-crack-002",
+      "className": "longitudinal_crack",
+      "confidence": 0.79,
+      "capturedAt": "2026-11-07T12:15:03-05:00",
+      "frameTimestampMs": 5500,
+      "boundingBox": {"x": 0.15, "y": 0.34, "width": 0.12, "height": 0.41},
+      "location": null,
+      "imageUrl": null
+    }
+  ]
+}
