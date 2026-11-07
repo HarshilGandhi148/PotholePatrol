@@ -262,6 +262,7 @@ public final class YOLOView: UIView, VideoCaptureDelegate {
           predictor.excludedClasses = self.excludedClasses
           self.videoCapture.predictor = predictor
           predictor.setNumItemsThreshold(numItems: self.getNumItemsThreshold())
+          predictor.setConfidenceThreshold(confidence: self.getConfidenceThreshold())
           self.labelName.text = processString(self.modelName)
           completion?(.success(()))
         case .failure(let error):
