@@ -1,0 +1,264 @@
+<a href="https://www.ultralytics.com"><img src="https://raw.githubusercontent.com/ultralytics/assets/main/logo/Ultralytics_Logotype_Original.svg" width="320" alt="Ultralytics logo"></a>
+
+[English](README.md) | [简体中文](README.zh-CN.md)
+
+# 🚀 Ultralytics YOLO for iOS: App and Swift Package
+
+[![Ultralytics Actions](https://github.com/ultralytics/yolo-ios-app/actions/workflows/format.yml/badge.svg)](https://github.com/ultralytics/yolo-ios-app/actions/workflows/format.yml)
+[![CI](https://github.com/ultralytics/yolo-ios-app/actions/workflows/ci.yml/badge.svg)](https://github.com/ultralytics/yolo-ios-app/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/github/ultralytics/yolo-ios-app/branch/main/graph/badge.svg)](https://app.codecov.io/github/ultralytics/yolo-ios-app)
+[![CocoaPods](https://img.shields.io/cocoapods/v/UltralyticsYOLO?logo=cocoapods&logoColor=white&label=CocoaPods)](https://cocoapods.org/pods/UltralyticsYOLO)
+
+[![Ultralytics Discord](https://img.shields.io/discord/1089800235347353640?logo=discord&logoColor=white&label=Discord&color=blue)](https://discord.com/invite/ultralytics)
+[![Ultralytics Forums](https://img.shields.io/discourse/users?server=https%3A%2F%2Fcommunity.ultralytics.com&logo=discourse&label=Forums&color=blue)](https://community.ultralytics.com)
+[![Ultralytics Reddit](https://img.shields.io/reddit/subreddit-subscribers/ultralytics?style=flat&logo=reddit&logoColor=white&label=Reddit&color=blue)](https://reddit.com/r/ultralytics)
+
+[Ultralytics YOLO](https://github.com/ultralytics/ultralytics) for iOS provides on-device [real-time inference](https://www.ultralytics.com/glossary/real-time-inference) for [object detection](https://www.ultralytics.com/glossary/object-detection), instance segmentation, semantic segmentation, depth estimation, classification, pose estimation, and oriented bounding box detection. The SDK supports both [YOLO11](https://docs.ultralytics.com/models/yolo11) (with Core ML NMS) and [YOLO26 models](https://platform.ultralytics.com/ultralytics/yolo26) (shipped with `nms=False` for NMS-free inference). Download the app from the [App Store](https://apps.apple.com/app/ultralytics-yolo/id1452689527), or integrate the Swift package into your own applications.
+
+<div align="center">
+  <br>
+  <a href="https://apps.apple.com/app/ultralytics-yolo/id1452689527" target="_blank"><img width="100%" src="https://cdn.ul.run/i/4d2098fa5d7bc0e5a5aa28660da41eb4.avif" alt="Ultralytics YOLO iOS App previews"></a>
+  <br>
+  <br>
+  <a href="https://apps.apple.com/app/ultralytics-yolo/id1452689527" style="text-decoration:none;">
+    <img src="https://raw.githubusercontent.com/ultralytics/assets/main/app/app-store.svg" width="15%" alt="Apple App store"></a>
+  &nbsp;&nbsp;
+  <a href="https://play.google.com/store/apps/details?id=com.ultralytics.yolo" style="text-decoration:none;">
+    <img src="https://raw.githubusercontent.com/ultralytics/assets/main/app/google-play.svg" width="15%" alt="Get it on Google Play"></a>
+</div>
+
+## ✨ Features
+
+- Swift and Core ML throughout, running on the Apple Neural Engine and GPU
+- Opt-in Apple Core AI (`.aimodel`) models on iOS 27 and later devices; Core ML (`.mlpackage`) remains the default
+- Camera-rate (~30 FPS) real-time inference on recent iPhones — see [docs/performance.md](docs/performance.md) for on-device profiling
+- Native UI following Apple interface guidelines
+- YOLO26 and YOLO11 models supported, including NMS-free and raw outputs
+- No third-party dependencies — pure Swift on Apple's first-party frameworks
+
+| Feature                               | iOS | Details                                       |
+| ------------------------------------- | --- | --------------------------------------------- |
+| Object Detection                      | ✅  | Bounding boxes, labels, and confidence scores |
+| Instance Segmentation                 | ✅  | Instance masks with boxes and classes         |
+| Semantic Segmentation                 | ✅  | Dense per-pixel class maps                    |
+| Depth Estimation                      | ✅  | Dense metric depth maps                       |
+| Image Classification                  | ✅  | Top class predictions and scores              |
+| Pose Estimation                       | ✅  | Keypoints with boxes and confidence scores    |
+| Oriented Bounding Box (OBB) Detection | ✅  | Rotated boxes and polygon corners             |
+
+## 📂 Repository Content
+
+This repository contains two components for running YOLO models on Apple platforms ([Edge AI](https://www.ultralytics.com/glossary/edge-ai)):
+
+### [**Ultralytics YOLO iOS App (Main App)**](https://github.com/ultralytics/yolo-ios-app/tree/main/YOLOiOSApp)
+
+The primary iOS application allows easy real-time YOLO inference using your device's camera or image library. The shipped app bundles all seven official nano Core ML models, larger variants download on demand, and you can also test your custom [Core ML](https://developer.apple.com/documentation/coreml) or opt-in Core AI (`.aimodel`, iOS 27+ devices) models by adding them to the app project.
+
+### [**Swift Package (YOLO Library)**](https://github.com/ultralytics/yolo-ios-app/tree/main/Sources/UltralyticsYOLO)
+
+A lightweight [Swift](https://developer.apple.com/swift/) package designed for iOS and iPadOS. It handles model loading, inference, and postprocessing for YOLO models like YOLO26 in your own applications, with a few lines of [SwiftUI](https://developer.apple.com/xcode/swiftui/):
+
+```swift
+// Perform inference on a UIImage
+let result = model(uiImage)
+```
+
+```swift
+// Use the built-in camera view for real-time inference with a model bundled in your app
+var body: some View {
+    YOLOCamera(
+        modelPathOrName: "yolo26n-seg",
+        task: .segment,
+        cameraPosition: .back
+    )
+    .ignoresSafeArea()
+}
+```
+
+## 📦 Official Model Assets
+
+Official models are GitHub release assets, not large files committed to the repositories. The main iOS app downloads the seven nano Core ML assets at build time and bundles them into the app; larger app models, the Swift package's `YOLO(url:)` loading, and Flutter package assets download official models on first use and cache them locally.
+
+The main YOLOiOSApp **bundles all seven nano models** (one per task: detect, segment, semantic, depth, classify, pose, OBB) into the shipped app, including App Store/archive builds. They are downloaded at build time from the GitHub release assets by a **Download YOLO Models** Xcode build phase that runs [`scripts/download-models.sh`](scripts/download-models.sh) — the `.mlpackage` files are **never committed to the repo** (`*.mlpackage` is gitignored). The step is idempotent and is skipped on GitHub Actions CI, which runs the same script in its own step.
+
+| Runtime asset                 | Used by                                      | Release                                                                                          |
+| ----------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Core ML int8 `.mlpackage.zip` | iOS app, Swift package, Flutter on iOS/macOS | [yolo-ios-app `v8.3.0`](https://github.com/ultralytics/yolo-ios-app/releases/tag/v8.3.0)         |
+| Core AI FP16 `.aimodel.zip`   | Opt-in: iOS app, Swift package on iOS 27+    | [yolo-ios-app `v8.3.0`](https://github.com/ultralytics/yolo-ios-app/releases/tag/v8.3.0)         |
+| LiteRT w8a32 `.tflite`        | Flutter on Android                           | [yolo-flutter-app `v0.6.6`](https://github.com/ultralytics/yolo-flutter-app/releases/tag/v0.6.6) |
+
+URL patterns:
+
+- Core ML: `https://github.com/ultralytics/yolo-ios-app/releases/download/v8.3.0/<model>.mlpackage.zip`
+- Core AI (opt-in): `https://github.com/ultralytics/yolo-ios-app/releases/download/v8.3.0/<model>.aimodel.zip`
+- LiteRT: `https://github.com/ultralytics/yolo-flutter-app/releases/download/v0.6.6/<model>_w8a32.tflite`
+
+Core ML (`.mlpackage`) remains the default. Core AI (`.aimodel`) is an opt-in for iOS 27 and later devices: pass an
+`.aimodel` path or an `.aimodel.zip` URL. It is not available on earlier iOS versions or in the iOS Simulator. See
+[docs/performance.md](docs/performance.md#-core-ai-backend) for the measured trade-offs. In the iOS app, turn on **Settings → Ultralytics YOLO → Core AI Models (iOS 27+)** (off by default) and return to the app: it then lists, downloads and loads the Core AI assets instead of the Core ML ones.
+
+```swift
+let local = YOLO("/path/to/yolo26n.aimodel", task: .detect)
+let remote = YOLO(url: URL(string: "https://github.com/ultralytics/yolo-ios-app/releases/download/v8.3.0/yolo26n.aimodel.zip")!, task: .detect)
+```
+
+The iOS app registry is [`RemoteModels.swift`](YOLOiOSApp/YOLOiOSApp/RemoteModels.swift). It enumerates YOLO26
+`n/s/m/l/x` assets for detect, segment, semantic, depth, classify, pose, and OBB and points each model ID at the
+`v8.3.0` release. The Core ML and Core AI columns below are owned by this repo; the LiteRT column summarizes the
+Flutter repo's Android export script and release assets.
+
+| Property           | Core ML                                 | Core AI                                 | LiteRT                                  |
+| ------------------ | --------------------------------------- | --------------------------------------- | --------------------------------------- |
+| Model IDs          | `yolo26{n,s,m,l,x}`                     | `yolo26{n,s,m,l,x}`                     | `yolo26{n,s,m,l,x}`                     |
+| Tasks              | detect, seg, sem, depth, cls, pose, obb | detect, seg, sem, depth, cls, pose, obb | detect, seg, sem, depth, cls, pose, obb |
+| Format             | `.mlpackage.zip`                        | `.aimodel.zip`                          | `.tflite`                               |
+| Runs on            | iOS 13+, iOS Simulator                  | iOS 27+ devices                         | Android                                 |
+| `quantize`         | `8`                                     | `16`                                    | `w8a32`                                 |
+| `imgsz`            | `224` cls; `640` others                 | `224` cls; `640` others                 | `224` cls; `640` others                 |
+| `nms`              | `False`                                 | `None`                                  | `None`                                  |
+| `end2end` metadata | `False` cls/sem/depth; `True` others    | `False`                                 | `False`                                 |
+| Calibration        | exporter default                        | None (FP16)                             | None (dynamic-range)                    |
+| Preprocessing      | Vision                                  | Swift (letterbox, Accelerate)           | Android native                          |
+| Postprocessing     | Swift                                   | Swift (with NMS)                        | Android native                          |
+
+Export scripts require `ultralytics>=8.4.142`, and `>=8.4.155` for Core AI. Core ML assets use `nms=False` to select the NMS-free head for detect,
+segment, pose, and OBB. Core AI assets keep the package default raw head (`nms=None`), which the SDK decodes with its
+existing Swift NMS: on an iPhone 17 Pro it is about twice as fast in inference as both the Core AI end-to-end head and
+the Core ML assets ([docs/performance.md](docs/performance.md#-core-ai-backend)). Core AI has no NMS operator, so there
+is no NMS pipeline stage as in Core ML, and the Ultralytics package has no int8 Core AI export, so Core AI assets are
+FP16 and roughly twice the download size of the int8 Core ML assets. Both formats carry the same Ultralytics metadata
+keys and values (`task`, `names`, `imgsz`, `stride`, `end2end`, ...), and the SDK decodes either head by output shape.
+With `useGpu` true (hardware acceleration) Core AI places the model across the Neural Engine, GPU and CPU; `useGpu`
+false pins it to the CPU. Classification, semantic, and depth retain their native outputs. LiteRT uses `nms=None`
+for raw one-to-many outputs with Android-side NMS. `nms=True` embeds NMS where supported. The `end2end` metadata
+field describes the exported graph; use `nms` to configure exports.
+
+### Core ML and Core AI Release Workflow
+
+The published `v8.3.0` binary dimensions are recorded above. The export script
+[`scripts/export-models.py`](scripts/export-models.py) defines the official exports, int8 Core ML and FP16 Core AI
+settings, `.mlpackage.zip` and `.aimodel.zip` packaging, the optional local app-copy step, and optional GitHub release
+upload. It exports Core ML by default; add `--formats coreai` (or `--formats coreml coreai`) for the opt-in Core AI assets, which needs macOS 26 or later on Apple silicon, `ultralytics>=8.4.155` and `coreai-torch>=0.4.2`. If its export matrix
+changes, replace the generated assets in `v8.3.0` and update this table together.
+
+```bash
+uv venv --python 3.13 .venv
+uv pip install "ultralytics[export-coreml]>=8.4.142"
+uv run python scripts/export-models.py
+```
+
+Useful variants:
+
+```bash
+# Export only nano task models for local validation and copy them into YOLOiOSApp/Models/.
+uv run python scripts/export-models.py --sizes n --copy-to-app
+
+# Export and replace all official Core ML assets in the existing release.
+uv run python scripts/export-models.py --upload --repo ultralytics/yolo-ios-app --tag v8.3.0
+
+# Export and replace the opt-in Core AI assets (macOS 26 or later on Apple silicon).
+uv run python scripts/export-models.py --formats coreai --upload --repo ultralytics/yolo-ios-app --tag v8.3.0
+```
+
+The script exports from checkpoints named `yolo26<size><suffix>.pt`, for example `yolo26n.pt`, `yolo26s-seg.pt`, `yolo26m-sem.pt`, `yolo26l-pose.pt`, and `yolo26x-obb.pt`. Official Core ML assets use `nms=False` to select NMS-free detect, segment, pose, and OBB outputs, while Core AI assets keep the raw head and the SDK applies its Swift NMS; depth retains its raw dense output. Swift-side postprocessing handles these task outputs (classify and semantic outputs need no NMS decode).
+
+### Android LiteRT Counterparts
+
+The Android assets used by the Flutter package are maintained in the Flutter repo, not this iOS repo. Their canonical
+export script is `scripts/export-tflite-models.py` in `ultralytics/yolo-flutter-app`; it exports the matching YOLO26
+task/size matrix as w8a32 `.tflite` assets. This dynamic-range format uses int8 weights and FP32 activations, needs no
+calibration data, and is published in `yolo-flutter-app` `v0.6.6`.
+
+## 🛠️ Quickstart Guide
+
+New to YOLO on mobile or want to quickly test your custom model? Start with the main YOLOiOSApp. The seven nano task models are bundled at build time, so the app can run offline after installation; larger model sizes download on demand.
+
+- [**Ultralytics YOLO iOS App (Main App)**](https://github.com/ultralytics/yolo-ios-app/tree/main/YOLOiOSApp): The easiest way to experience YOLO inference on iOS.
+
+Ready to integrate YOLO into your own project? Explore the Swift Package and example applications.
+
+- [**Swift Package (YOLO Library)**](https://github.com/ultralytics/yolo-ios-app/tree/main/Sources/UltralyticsYOLO): Integrate YOLO capabilities into your Swift app.
+- [**Example Apps**](https://github.com/ultralytics/yolo-ios-app/tree/main/ExampleApps): See practical implementations using the YOLO Swift Package.
+
+Add the `UltralyticsYOLO` package to your app with Swift Package Manager:
+
+```swift
+.package(url: "https://github.com/ultralytics/yolo-ios-app.git", from: "8.9.17")
+```
+
+Or with CocoaPods:
+
+```ruby
+pod 'UltralyticsYOLO', '~> 8.9'
+```
+
+Then `import UltralyticsYOLO` and use the `YOLO` class — see the [Swift Package README](https://github.com/ultralytics/yolo-ios-app/tree/main/Sources/UltralyticsYOLO) for full usage. The same `UltralyticsYOLO` package powers both this native iOS app and the [Ultralytics YOLO Flutter plugin](https://github.com/ultralytics/yolo-flutter-app), keeping one source of truth across platforms.
+
+## Import a custom model from Ultralytics Platform
+
+In Platform, click the QR button on a completed Core ML or Core AI export, then open Ultralytics YOLO, tap the QR button in the bottom toolbar, and point the existing camera preview at the code. While scanning, the camera dims around a viewfinder; tap **Cancel** or the QR button again to return to inference. Confirm the model name, task, and download size. The app installs the model and adds it to the **Custom** section of the model picker. The header shows the task, with **Custom** added for imported models, above the active model name. Tap it to choose a custom import or any official model in one compact list, with size choices grouped into one row per task. The **Custom** section also provides **Scan QR** and a help button for the [Platform export guide](https://docs.ultralytics.com/platform/train/models#export-model). Tap the trash icon next to a custom model to remove it. The last selected custom model is restored on launch and works offline.
+
+Exports must use batch 1 and static inputs. Core AI requires a supported iOS 27+ device; use Core ML for broader compatibility. Importing a model uses its actual format independently of the official-model Core AI setting. Links authorize one export for 24 hours; anyone with the link can download during that window. Installed models continue working after expiry, and separate exports never overwrite each other even when their names match.
+
+## 🧪 Testing Procedures
+
+This repository includes comprehensive [unit tests](https://en.wikipedia.org/wiki/Unit_testing) for both the YOLO Swift Package and the example applications, ensuring code reliability and stability.
+
+### Running Tests
+
+Tests require Core ML model files (`.mlpackage`), which are not committed to the repository due to their size. To run the package tests with model validation, first run the same downloader used by CI and the app build phase:
+
+```bash
+bash scripts/download-models.sh
+```
+
+This downloads the seven nano Core ML packages into `Tests/YOLOTests/Resources/` and copies them into `YOLOiOSApp/Models/<Task>/` for the main app bundle. Tests run on the iOS Simulator, which does not ship Core AI, so they exercise the Core ML backend; the opt-in Core AI backend is validated on an iOS 27 device ([docs/performance.md](docs/performance.md#-core-ai-backend)). You can also export or replace these packages with custom Core ML models using the [Ultralytics Python library's export function](https://docs.ultralytics.com/modes/export). If a specific test target supports `SKIP_MODEL_TESTS`, keeping it set to `true` skips tests that require loading and running a model.
+
+### Test Coverage
+
+- **YOLO Swift Package**: Includes tests for core functionalities like model loading, preprocessing, inference, and postprocessing across different tasks.
+- **Example Apps**: Contains tests verifying UI components, model integration, and real-time inference performance within the sample applications.
+
+### Test Documentation
+
+Each test directory (e.g., `Tests/YOLOTests`) may include a `README.md` with specific instructions for testing that component, covering:
+
+- Required model files and where to obtain them.
+- Steps for model conversion and setup.
+- Overview of the testing strategy.
+- Explanation of key test cases.
+
+## 💡 Contribute
+
+We warmly welcome contributions to our open-source projects! Your support helps us push the boundaries of [Artificial Intelligence (AI)](https://www.ultralytics.com/glossary/artificial-intelligence-ai). Get involved by reviewing our [Contributing Guide](https://docs.ultralytics.com/help/contributing) and sharing your feedback through our [Survey](https://www.ultralytics.com/survey?utm_source=github&utm_medium=social&utm_campaign=Survey). Thank you 🙏 to all our contributors!
+
+[![Ultralytics open-source contributors](https://raw.githubusercontent.com/ultralytics/assets/main/im/image-contributors.png)](https://github.com/ultralytics/ultralytics/graphs/contributors)
+
+## 📄 License
+
+Ultralytics provides two licensing options to accommodate diverse use cases:
+
+- **AGPL-3.0 License**: An [OSI-approved](https://opensource.org/license/agpl-3.0) open-source license ideal for academic research, personal projects, and experimentation. It promotes open collaboration and knowledge sharing. See the [LICENSE](https://github.com/ultralytics/yolo-ios-app/blob/main/LICENSE) file for the full license text.
+- **Enterprise License**: Tailored for commercial applications, this license allows the integration of Ultralytics software and AI models into commercial products and services without the open-source requirements of AGPL-3.0. If your scenario involves commercial use, please contact us via [Ultralytics Licensing](https://www.ultralytics.com/license).
+
+## 📮 Contact
+
+- For bug reports and feature requests related to this iOS project, please use [GitHub Issues](https://github.com/ultralytics/yolo-ios-app/issues).
+- For questions, discussions, and support regarding Ultralytics technologies, join our active [Discord](https://discord.com/invite/ultralytics) community!
+
+<br>
+<div align="center">
+  <a href="https://github.com/ultralytics"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-github.png" width="3%" alt="Ultralytics GitHub"></a>
+  <img src="https://github.com/ultralytics/assets/raw/main/social/logo-transparent.png" width="3%" alt="space">
+  <a href="https://www.linkedin.com/company/ultralytics/"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-linkedin.png" width="3%" alt="Ultralytics LinkedIn"></a>
+  <img src="https://github.com/ultralytics/assets/raw/main/social/logo-transparent.png" width="3%" alt="space">
+  <a href="https://twitter.com/ultralytics"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-twitter.png" width="3%" alt="Ultralytics Twitter"></a>
+  <img src="https://github.com/ultralytics/assets/raw/main/social/logo-transparent.png" width="3%" alt="space">
+  <a href="https://www.youtube.com/ultralytics?sub_confirmation=1"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-youtube.png" width="3%" alt="Ultralytics YouTube"></a>
+  <img src="https://github.com/ultralytics/assets/raw/main/social/logo-transparent.png" width="3%" alt="space">
+  <a href="https://www.tiktok.com/@ultralytics"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-tiktok.png" width="3%" alt="Ultralytics TikTok"></a>
+  <img src="https://github.com/ultralytics/assets/raw/main/social/logo-transparent.png" width="3%" alt="space">
+  <a href="https://ultralytics.com/bilibili"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-bilibili.png" width="3%" alt="Ultralytics BiliBili"></a>
+  <img src="https://github.com/ultralytics/assets/raw/main/social/logo-transparent.png" width="3%" alt="space">
+  <a href="https://discord.com/invite/ultralytics"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-discord.png" width="3%" alt="Ultralytics Discord"></a>
+</div>
