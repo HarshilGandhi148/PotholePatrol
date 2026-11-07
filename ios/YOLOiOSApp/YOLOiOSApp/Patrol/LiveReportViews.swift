@@ -20,13 +20,13 @@ struct LiveReportRow: View {
   var body: some View {
     HStack(spacing: 12) {
       if let image = report.image {
-        Image(uiImage: image).resizable().scaledToFill().frame(width: 46, height: 46)
-          .clipShape(RoundedRectangle(cornerRadius: 6))
+        Image(uiImage: image).resizable().scaledToFill().frame(width: 48, height: 48)
+          .clipShape(RoundedRectangle(cornerRadius: 10))
       }
       VStack(alignment: .leading, spacing: 4) {
         Text(report.title ?? "Pothole from Live Scan").font(.subheadline.weight(.semibold))
-        Text(report.statusText).font(.caption).foregroundStyle(report.rejection == nil ? Color.secondary : Color.red)
-        Text(report.capturedAt.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+        Text(report.statusText).font(.caption).foregroundStyle(report.rejection == nil ? PatrolTheme.secondary : PatrolTheme.error)
+        Text(report.capturedAt.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(PatrolTheme.secondary)
       }
     }.padding(.vertical, 4)
   }
@@ -44,7 +44,7 @@ struct LiveReportDetailView: View {
     ScrollView {
       if let report = store.liveReports.first(where: { $0.id == id }) { content(report).padding() }
     }
-    .navigationTitle("Live Scan report").navigationBarTitleDisplayMode(.inline)
+    .patrolScreen().navigationTitle("Live Scan report").navigationBarTitleDisplayMode(.inline)
     .confirmationDialog("Delete this report and its photo from this phone?", isPresented: $confirmDelete, titleVisibility: .visible) {
       Button("Delete", role: .destructive) {
         store.deleteLiveReport(id: id)
@@ -61,7 +61,7 @@ struct LiveReportDetailView: View {
         Image(uiImage: image).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 8))
       }
       Text(report.title ?? "Pothole from Live Scan").font(.title3.bold())
-      Text(report.capturedAt.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+      Text(report.capturedAt.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(PatrolTheme.secondary)
       GroupBox("Estimated size") {
         VStack(alignment: .leading, spacing: 6) {
           if let area = report.areaText { Text("Area \(area)").font(.headline) }
@@ -96,13 +96,13 @@ struct LiveReportDetailView: View {
         if let serverID = report.serverID {
           if report.sentTo == store.baseURLString {
             NavigationLink("Open report and send to agency") { PotholeDetailView(id: serverID) }
-              .buttonStyle(.borderedProminent)
+              .buttonStyle(PatrolPrimaryButton())
           } else {
             Text("This was sent to a different backend address.").font(.subheadline)
           }
         } else {
           if let problem = report.rejection ?? store.liveError { ErrorNotice(text: problem) }
-          Button("Send now") { store.sendLiveReportsNow() }.buttonStyle(.borderedProminent)
+          Button("Send now") { store.sendLiveReportsNow() }.buttonStyle(PatrolPrimaryButton())
         }
       }.frame(maxWidth: .infinity, alignment: .leading)
     }

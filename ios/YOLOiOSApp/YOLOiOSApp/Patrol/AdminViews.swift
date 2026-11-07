@@ -11,18 +11,29 @@ struct AdminEntryView: View {
     NavigationStack {
       if session.authenticated { AdminDashboardView().environmentObject(session) }
       else {
-        Form {
-          Section {
-            Label("Administrator Sign In", systemImage: "lock.shield.fill").font(.title3.bold())
-            Text("Maintenance operations require verification by the Pothole Patrol server.").font(.subheadline).foregroundStyle(.secondary)
-            SecureField("Administrator passcode", text: $passcode).textContentType(.password).submitLabel(.go).onSubmit { signIn() }
-            Button(action: signIn) { if session.busy { ProgressView() }; Text("Sign In") }.disabled(passcode.isEmpty || session.busy)
-          }
-          if let error = session.error { Section { ErrorNotice(text: error) } }
-          Section { Text("Passcodes are never saved. A verified session token is held in the iOS Keychain and rechecked with the server before reopening operations.").font(.caption).foregroundStyle(.secondary) }
+        ScrollView {
+          VStack(alignment: .leading, spacing: 20) {
+            Image(systemName: "lock.shield").font(.title).foregroundStyle(PatrolTheme.accent).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 6) {
+              Text("Administrator Access").font(.title2.weight(.semibold))
+              Text("Sign in to maintenance operations.").font(.subheadline).foregroundStyle(PatrolTheme.secondary)
+            }
+            PatrolCard {
+              Text("Passcode").font(.subheadline.weight(.medium))
+              SecureField("Administrator passcode", text: $passcode).textContentType(.password)
+                .padding(12).background(PatrolTheme.elevated, in: RoundedRectangle(cornerRadius: 10))
+                .submitLabel(.go).onSubmit { signIn() }
+              Button(action: signIn) {
+                HStack { if session.busy { ProgressView().tint(PatrolTheme.secondary) }; Text(session.busy ? "Verifying…" : "Sign In") }
+              }.buttonStyle(PatrolPrimaryButton()).disabled(passcode.isEmpty || session.busy)
+            }
+            if let error = session.error { ErrorNotice(text: error) }
+            Label("Verified by the server. Passcodes are never saved.", systemImage: "lock")
+              .font(.caption).foregroundStyle(PatrolTheme.secondary)
+          }.padding(20)
         }
-        .navigationTitle("Pothole Patrol")
-        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Return to citizen app") { passcode = ""; dismiss() } } }
+        .patrolScreen().navigationTitle("Pothole Patrol").navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Back") { passcode = ""; dismiss() }.accessibilityLabel("Return to citizen app") } }
       }
     }.task { await session.restore() }.onDisappear { passcode = "" }
   }
@@ -42,75 +53,83 @@ struct AdminDashboardView: View {
   @State private var region = PatrolMap.home
   @State private var selected: Pothole?
   @State private var includeFixed = false
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   private var assigned: [Pothole] { session.reports.filter { $0.owner.isPublic && (agency.isEmpty || $0.owner.agencyId == agency) } }
   private var unassigned: [Pothole] { session.reports.filter { !$0.owner.isPublic && $0.owner.kind != "private" && $0.status != .fixed } }
   private var mapReports: [Pothole] { session.reports.filter { $0.validCoordinate && (includeFixed || $0.status != .fixed) && (agency.isEmpty || $0.owner.agencyId == agency) } }
   var body: some View {
     List {
       Section {
-        HStack {
-          VStack(alignment: .leading) { Text("Active assigned").font(.caption).foregroundStyle(.secondary); Text("\(assigned.filter { $0.status != .fixed }.count)").font(.title2.bold()) }
-          Spacer()
-          VStack(alignment: .leading) { Text("Needs jurisdiction review").font(.caption).foregroundStyle(.secondary); Text("\(unassigned.count)").font(.title2.bold()) }
+        if !session.busy {
+          if dynamicTypeSize.isAccessibilitySize { VStack(spacing: 8) { metrics } }
+          else { HStack(spacing: 8) { metrics } }
         }
-        Picker("View", selection: $mode) {
-          Text("Active").tag("active"); Text("History").tag("history"); Text("Unassigned").tag("unassigned"); Text("Map").tag("map")
-        }.pickerStyle(.segmented)
+        if dynamicTypeSize.isAccessibilitySize {
+          Picker("View", selection: $mode) { modes }.pickerStyle(.menu)
+        } else {
+          Picker("View", selection: $mode) { modes }.pickerStyle(.segmented)
+        }
         Picker("Agency", selection: $agency) {
           Text("All agencies").tag(""); ForEach(session.agencies) { Text($0.name).tag($0.id) }
         }.disabled(session.busy)
-      }
-      if session.busy { ProgressView("Loading operations…") }
-      if let error = session.error { ErrorNotice(text: error) }
+      }.listRowBackground(PatrolTheme.background).listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0)).listRowSeparator(.hidden)
+      if session.busy { ProgressView("Loading operations…").listRowBackground(PatrolTheme.surface) }
+      if let error = session.error { ErrorNotice(text: error).listRowBackground(PatrolTheme.surface) }
       if mode == "active" {
-        Section("Authenticated ranked queue · backend order") {
-          if session.queue.isEmpty && !session.busy { Text("No assigned active potholes in this queue.").foregroundStyle(.secondary) }
+        Section("Priority Queue · Backend Order") {
+          if session.queue.isEmpty && !session.busy { Text("No assigned active potholes in this queue.").foregroundStyle(PatrolTheme.secondary) }
           ForEach(Array(session.queue.enumerated()), id: \.element.id) { rank, report in
             NavigationLink { AdminPotholeDetailView(initial: report, canEdit: true).environmentObject(session) } label: {
               HStack(alignment: .top, spacing: 12) {
-                Text("\(rank + 1)").font(.caption.monospacedDigit()).foregroundStyle(.secondary).frame(width: 20)
-                PotholeThumbnail(url: report.photoUrl)
+                Text("\(rank + 1)").font(.caption.monospacedDigit()).foregroundStyle(PatrolTheme.secondary).frame(width: 20)
+                if !dynamicTypeSize.isAccessibilitySize && report.photoUrl != nil { PotholeThumbnail(url: report.photoUrl) }
                 VStack(alignment: .leading, spacing: 7) {
                   Text(report.title).font(.subheadline.weight(.semibold))
-                  HStack { StatusBadge(status: report.status); Text("\(report.reportCount) reporters").font(.caption) }
-                  Text(report.owner.agencyName ?? "Unverified agency").font(.caption).foregroundStyle(.secondary)
+                  ViewThatFits(in: .horizontal) {
+                    HStack { StatusBadge(status: report.status); Text("\(report.reportCount) reports").font(.caption).foregroundStyle(PatrolTheme.secondary) }
+                    VStack(alignment: .leading, spacing: 4) { StatusBadge(status: report.status); Text("\(report.reportCount) reports").font(.caption) }
+                  }
+                  Text(report.owner.agencyName ?? "Unverified agency").font(.caption).foregroundStyle(PatrolTheme.secondary)
                 }
                 Spacer(minLength: 0)
-                Text("\(report.priority.score)").font(.title3.bold().monospacedDigit()).foregroundStyle(.blue)
+                VStack(spacing: 4) {
+                  Text("\(report.priority.score)").font(.title3.weight(.semibold).monospacedDigit()).foregroundStyle(PatrolTheme.accent)
+                  Text("Priority").font(.caption2).foregroundStyle(PatrolTheme.secondary)
+                }.accessibilityElement(children: .combine)
               }.padding(.vertical, 5)
             }
           }
-        }
+        }.listRowBackground(PatrolTheme.surface)
       } else if mode == "history" {
         Section("Fixed / History") {
           let history = assigned.filter { $0.status == .fixed }
-          if history.isEmpty { Text("No fixed reports for this filter.").foregroundStyle(.secondary) }
+          if history.isEmpty { Text("No fixed reports for this filter.").foregroundStyle(PatrolTheme.secondary) }
           ForEach(history) { report in
             NavigationLink { AdminPotholeDetailView(initial: report, canEdit: true).environmentObject(session) } label: { adminRow(report) }
           }
-        }
+        }.listRowBackground(PatrolTheme.surface)
       } else if mode == "unassigned" {
-        Section("Unassigned / Needs Jurisdiction Review") {
-          Text("Read-only public observations. These are excluded from the authenticated ranked queue. Indianapolis/Fishers ownership coverage is not assumed. Agency filtering does not hide this section.").font(.caption).foregroundStyle(.secondary)
+        Section("Unassigned Observations") {
+          Text("Read-only · ownership needs review. Shown across all agencies; excluded from the priority queue.").font(.caption).foregroundStyle(PatrolTheme.secondary)
           if unassigned.isEmpty { Text("No unassigned active observations.") }
           ForEach(unassigned) { report in
             NavigationLink { AdminPotholeDetailView(initial: report, canEdit: false).environmentObject(session) } label: { adminRow(report) }
           }
-        }
+        }.listRowBackground(PatrolTheme.surface)
       } else {
         Section("Road network") {
           Toggle("Include fixed reports", isOn: $includeFixed)
           Button("Show All Reports") { if let fitted = PatrolMap.fitted(mapReports) { region = fitted } }
           Map(coordinateRegion: $region, annotationItems: mapReports) { report in
             MapAnnotation(coordinate: report.coordinate) {
-              Button { selected = report } label: { Image(systemName: "mappin.circle.fill").font(.title).foregroundStyle(report.status.color).background(.white, in: Circle()) }
+              Button { selected = report } label: { PatrolMapMarker(status: report.status) }
                 .accessibilityLabel(report.title)
             }
           }.frame(height: 360).listRowInsets(EdgeInsets())
-        }
+        }.listRowBackground(PatrolTheme.surface)
       }
     }
-    .navigationTitle("Maintenance Operations").navigationBarTitleDisplayMode(.inline)
+    .patrolScreen().navigationTitle("Maintenance Operations").navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
       ToolbarItem(placement: .primaryAction) { Button("Log out") { session.logout() }.disabled(session.busy) }
@@ -119,10 +138,18 @@ struct AdminDashboardView: View {
     .refreshable { await session.refresh(agencyId: agency.isEmpty ? nil : agency) }
     .sheet(item: $selected) { report in NavigationStack { AdminPotholeDetailView(initial: report, canEdit: report.owner.isPublic).environmentObject(session) } }
   }
+  @ViewBuilder private var modes: some View {
+    Text("Queue").tag("active"); Text("Map").tag("map"); Text("History").tag("history"); Text("Unassigned").tag("unassigned")
+  }
+  @ViewBuilder private var metrics: some View {
+    PatrolMetricCard(title: "Active", value: assigned.filter { $0.status != .fixed }.count)
+    PatrolMetricCard(title: "Unassigned", value: unassigned.count)
+    PatrolMetricCard(title: "Fixed", value: assigned.filter { $0.status == .fixed }.count)
+  }
   private func adminRow(_ report: Pothole) -> some View {
     VStack(alignment: .leading, spacing: 7) {
       Text(report.title).font(.subheadline.weight(.semibold)); StatusBadge(status: report.status)
-      Text("\(report.reportCount) reporters · Updated \(report.updatedAt.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(.secondary)
+      Text("\(report.reportCount) reporters · Updated \(report.updatedAt.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(PatrolTheme.secondary)
     }.padding(.vertical, 5)
   }
 }
@@ -142,12 +169,12 @@ struct AdminPotholeDetailView: View {
           PotholePhoto(url: report.photoUrl)
           Text(report.title).font(.title3.bold()); StatusBadge(status: report.status)
           Text(report.owner.agencyName ?? "Responsible agency not yet verified.").font(.headline)
-          Text(report.owner.reason).font(.subheadline).foregroundStyle(.secondary)
+          Text(report.owner.reason).font(.subheadline).foregroundStyle(PatrolTheme.secondary)
           Text("\(report.reportCount) distinct reporters · Updated \(report.updatedAt.formatted(date: .abbreviated, time: .shortened))").font(.caption)
           if canEdit {
             GroupBox("Backend priority") {
               VStack(alignment: .leading, spacing: 8) {
-                Text("\(report.priority.score) total").font(.title2.bold())
+                Text("\(report.priority.score) total").font(.title2.bold()).foregroundStyle(PatrolTheme.accent)
                 LabeledContent("Reporters × 10", value: "\(report.priority.reporters) × 10")
                 LabeledContent("Road classification", value: "\(report.priority.roadClassPoints)")
                 LabeledContent("Days open", value: "\(report.priority.daysOpenPoints)")
@@ -156,23 +183,27 @@ struct AdminPotholeDetailView: View {
             GroupBox("Update public status") {
               VStack(alignment: .leading, spacing: 10) {
                 ForEach(PotholeStatus.allCases) { status in
-                  Button("Mark \(status.title)") {
+                  Button {
                     if status == .fixed { confirmFixed = true } else { Task { await change(status) } }
-                  }.buttonStyle(.bordered).disabled(session.busy || report.status == status)
+                  } label: {
+                    Text("Mark \(status.title)").frame(maxWidth: .infinity, minHeight: 44)
+                      .background(PatrolTheme.elevated, in: RoundedRectangle(cornerRadius: 10))
+                  }
+                    .disabled(session.busy || report.status == status)
                 }
-                Text("Only a successful server response changes the public status. Fixed does not imply independent repair verification.").font(.caption).foregroundStyle(.secondary)
+                Text("Only a successful server response changes the public status. Fixed does not imply independent repair verification.").font(.caption).foregroundStyle(PatrolTheme.secondary)
               }.frame(maxWidth: .infinity, alignment: .leading)
             }
-          } else { Text("Read-only · not assigned or ranked. Jurisdiction review is required.").font(.subheadline).foregroundStyle(.secondary) }
+          } else { Text("Read-only · not assigned or ranked. Jurisdiction review is required.").font(.subheadline).foregroundStyle(PatrolTheme.secondary) }
           if session.busy { ProgressView("Updating…") }
           if let error = session.error { ErrorNotice(text: error) }
         }
       }.padding()
     }
-    .navigationTitle("Operations detail").navigationBarTitleDisplayMode(.inline)
+    .patrolScreen().navigationTitle("Operations Detail").navigationBarTitleDisplayMode(.inline)
     .alert("Mark this pothole as fixed?", isPresented: $confirmFixed) {
       Button("Cancel", role: .cancel) {}
-      Button("Mark Fixed", role: .destructive) { Task { await change(.fixed) } }
+      Button("Mark Fixed") { Task { await change(.fixed) } }
     } message: { Text("The updated status will be visible to residents.") }
   }
   private func change(_ status: PotholeStatus) async {

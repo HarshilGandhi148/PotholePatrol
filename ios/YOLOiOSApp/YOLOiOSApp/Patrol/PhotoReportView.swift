@@ -19,24 +19,31 @@ struct PhotoReportView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 16) {
-        Text("Report a photo").font(.title2.bold())
-        Text("Only take a photo while stationary and safely away from traffic.").font(.subheadline).foregroundStyle(.secondary)
-        Label(location.message, systemImage: "location").font(.caption).foregroundStyle(.secondary)
+        PatrolCard {
+          Label("A photo. A location. A report.", systemImage: "camera").font(.headline)
+          Text("Take a clear photo, confirm its location, then submit.").font(.subheadline).foregroundStyle(PatrolTheme.secondary)
+        }
+        PatrolCard {
         if let pending = store.pending {
-          Text("You have a photo waiting. Review or discard it before taking another.").font(.subheadline)
-          Button { observation = pending } label: { Label("Review pending photo", systemImage: "photo") }.buttonStyle(.borderedProminent)
+          Label("Photo waiting to upload", systemImage: "tray.and.arrow.up").font(.headline).foregroundStyle(PatrolTheme.warning)
+          Text("Review your saved photo before taking another.").font(.subheadline).foregroundStyle(PatrolTheme.secondary)
+          Button { observation = pending } label: { Label("Review Photo", systemImage: "photo") }.buttonStyle(PatrolPrimaryButton())
         } else {
+          Text("Before you capture").font(.headline)
+          Text("Stay safely away from traffic.").font(.subheadline).foregroundStyle(PatrolTheme.secondary)
           Toggle("I am stationary and safely away from traffic", isOn: $stationary).font(.subheadline)
           Button { takePhoto() } label: { Label("Take Photo", systemImage: "camera.fill") }
-            .buttonStyle(.borderedProminent).disabled(!stationary)
+            .buttonStyle(PatrolPrimaryButton()).disabled(!stationary)
         }
+        }
+        Label(location.message, systemImage: "location").font(.caption).foregroundStyle(PatrolTheme.secondary)
         if let error { ErrorNotice(text: error) }
         Button("Open iOS permission settings") {
           if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
-        }.font(.caption)
+        }.font(.subheadline).frame(minHeight: 44)
       }.padding()
     }
-    .navigationTitle("Report a Photo").navigationBarTitleDisplayMode(.inline)
+    .patrolScreen().navigationTitle("Report a Photo").navigationBarTitleDisplayMode(.inline)
     .fullScreenCover(isPresented: $showingCamera) {
       PhotoCamera { image in
         showingCamera = false

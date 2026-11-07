@@ -42,7 +42,7 @@ Nine new app Swift files are explicitly in the Xcode app group and PBXSourcesBui
 5. Build for an available simulator for UI/network checks. Live inference and photo capture require a physical iPhone. Connect/unlock the phone, enable Developer Mode if required, select it as destination, and Run.
 6. In **More → Backend connection**, enter the current HTTPS base URL provided by Sanyam and save it. The temporary ngrok address is intentionally not bundled or committed. Tap **Check connection**. Every API request sets `ngrok-skip-browser-warning: true`.
 7. The Scan tab has two modes:
-   - **Live Scan:** set the phone height, mount the phone, and press Record before driving. Boxes and estimated area show on screen. Nothing is saved or sent.
+   - **Live Scan:** set the phone height, mount the phone, and tap Start before driving. Boxes and estimated area show on screen. Nothing is saved or sent.
    - **Report a Photo:** while safely stationary, confirm the toggle, take a photo, verify it, confirm/correct coordinates, then Confirm & Upload.
 8. Open Map or My Reports. Use **Show All Reports** if the server's records lie outside Indianapolis/Fishers. No synthetic metro observations are inserted.
 9. **More → Administrator Sign In**: enter the server passcode on the phone. Do not put it in project files or environment examples. The app verifies it with the server and stores only the returned token in Keychain. A saved token is revalidated using the protected queue before showing operations.
@@ -64,9 +64,9 @@ Run `xcodebuild -showdestinations` with the same project/scheme for an explicit 
 - YOLOView owns AVFoundation and Core ML, and the app creates no second capture session while Live Scan is open.
 - `DetectionTracker` confirms a pothole across frames, and `GroundPlaneMeasurer` estimates its area. See the repository README.
 - It's the only landscape screen, for a dashboard mount. It has no stationary check or speed stop, so it must be started before driving. Never operate a phone while driving.
-- Closing it stops the camera, and going to the background stops detection until Record is pressed again. The screen stays awake while it's open.
+- Closing it stops the camera, and going to the background stops detection until Start is tapped again. The screen stays awake while it's open.
 - Each pothole's location comes from GPS plus its offset on the road. While moving at 3 m/s or more, the camera's direction comes from the GPS course, which assumes it faces the direction of travel. Otherwise it comes from the compass.
-- No video file is recorded, and no journey history is stored or sent. While Record is on, a pothole is captured once, when `LiveReportGate` is sure: tracked for at least 1 s, confidence of at least 0.5, fully in frame, and at least 5 good measurements with GPS. It keeps the frame the detection came from, with no boxes on it, and holds it in memory, so captures that aren't saved are lost if the app quits. While the pothole stays in view, the photo is replaced by any later frame where it fills more of the picture and is still fully in frame, so Save uses the closest clear photo. Tapping Save sends them all, with no photo-by-photo review, so false detections and anything else in the frame can reach the backend.
+- No video file is recorded, and no journey history is stored or sent. While scanning, a pothole is captured once, when `LiveReportGate` is sure: tracked for at least 1 s, confidence of at least 0.5, fully in frame, and at least 5 good measurements with GPS. It keeps the frame the detection came from, with no boxes on it, and holds it in memory, so captures that aren't saved are lost if the app quits. While the pothole stays in view, the photo is replaced by any later frame where it fills more of the picture and is still fully in frame, so Save uses the closest clear photo. Tapping Save sends them all, with no photo-by-photo review, so false detections and anything else in the frame can reach the backend.
 - Saved reports, including their photos, stay in protected files excluded from backups until the resident deletes them. They open from My Reports, and retry through a poor connection and when the app reopens. A copy of My Reports is also saved on the phone for each server. Reports also send `width_m`, `length_m` and `area_m2`, which the current server ignores. Nothing is sent to an agency, because the resident still reports from the pothole's detail page.
 
 **Report a Photo**
@@ -155,3 +155,15 @@ Its synthetic URLProtocol intercepts every request; it never contacts the live b
 5. Enter the passcode only in the app. Test incorrect passcode/rate-limit UI with Sanyam's coordination, protected queue, agency filters, logout, invalidated-token 401, and offline saved-token restore. Citizens must never see staff content.
 6. Coordinate one real backend status edit with the team. Confirm Fixed removes assigned work from Active and remains in History; citizen refresh sees it. Unknown-owner records must remain visible in the read-only unassigned area rather than being falsely ranked or assigned.
 7. Open the Fishers report flow on a real iPhone and stop before Submit. Do not submit test reports to an agency.
+
+## Minimal dark UI
+
+The app uses a minimal dark theme, with shared styles in `Patrol/PotholePatrolRootView.swift`: `PatrolTheme`, `PatrolCard`, `PatrolPrimaryButton`, `PatrolEmptyState`, `PatrolMetricCard` and `patrolScreen()`.
+
+- **Scan:** a home screen with Live Scan as the main action, plus links to Report a Photo and the map.
+- **Map:** full-screen, with floating controls, status markers and a legend.
+- **Report a Photo and review:** Photo, Location and Submit sections, with both confirmations kept.
+- **Admin:** metrics, with Queue, Map, History and Unassigned views.
+- **Live Scan:** translucent exit, model and status controls, and a Start button. The FPS readout is hidden.
+
+Check on a real iPhone: small and large screen layouts, large text sizes, VoiceOver, and Live Scan in portrait and both landscape directions.
