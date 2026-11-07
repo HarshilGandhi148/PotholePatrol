@@ -37,6 +37,7 @@ private final class RecordViewController: UIViewController {
   private lazy var yoloView = YOLOView(frame: view.bounds)
   private lazy var modelPicker = UISegmentedControl(items: pickerModels.map(\.title))
   private let button = UIButton(configuration: .filled())
+  private let tracker = DetectionTracker()
   private var isRunning = false
 
   override func viewDidLoad() {
@@ -48,6 +49,11 @@ private final class RecordViewController: UIViewController {
     yoloView.subviews.forEach { $0.alpha = 0 }
     [yoloView.sliderConf, yoloView.labelSliderConf, yoloView.labelFPS].forEach { $0.alpha = 1 }
     yoloView.excludedClasses = ["longitudinal_crack", "transverse_crack"]
+    // The tracker applies the slider's threshold, and needs weaker detections to keep known potholes alive.
+    yoloView.fixedInferenceConfidence = 0.10
+    yoloView.resultTransform = { [weak self] result in
+      self?.steadied(result) ?? result
+    }
     view.addSubview(yoloView)
 
     modelPicker.translatesAutoresizingMaskIntoConstraints = false
@@ -108,8 +114,30 @@ private final class RecordViewController: UIViewController {
     }
   }
 
+  /// Replaces one frame's raw boxes with the tracker's steady ones.
+  private func steadied(_ result: YOLOResult) -> YOLOResult {
+    let detections = result.boxes.map {
+      TrackerDetection(
+        rect: $0.xywhn, confidence: $0.conf, classIndex: $0.index, className: $0.cls)
+    }
+    let tracks = tracker.update(
+      detections, at: CACurrentMediaTime(),
+      appearThreshold: Float(yoloView.getConfidenceThreshold()))
+    let size = result.orig_shape
+    return result.replacingBoxes(
+      tracks.map { track in
+        Box(
+          index: track.classIndex, cls: track.className, conf: track.confidence,
+          xywh: CGRect(
+            x: track.rect.minX * size.width, y: track.rect.minY * size.height,
+            width: track.rect.width * size.width, height: track.rect.height * size.height),
+          xywhn: track.rect)
+      })
+  }
+
   private func setRunning(_ running: Bool) {
     isRunning = running
+    tracker.reset()
     yoloView.setInferenceFlag(ok: running)
     yoloView.showOverlays = running  // Turning this off also clears the boxes left on screen.
     button.configuration?.title = running ? "Stop" : "Record"

@@ -61,7 +61,8 @@ public final class YOLOView: UIView, VideoCaptureDelegate {
     self.delegate?.yoloView(self, didUpdatePerformance: fps, inferenceTime: speed)
   }
 
-  public func onPredict(result: YOLOResult) {
+  public func onPredict(result rawResult: YOLOResult) {
+    let result = resultTransform?(rawResult) ?? rawResult
     // Notify consumers of detection results regardless of overlay visibility.
     delegate?.yoloView(self, didReceiveResult: result)
     onDetection?(result)
@@ -121,6 +122,13 @@ public final class YOLOView: UIView, VideoCaptureDelegate {
 
   /// Class labels to ignore in models loaded by later `setModel` calls.
   public var excludedClasses = Set<String>()
+
+  /// Changes each result before it is drawn or passed to the delegate.
+  public var resultTransform: ((YOLOResult) -> YOLOResult)?
+
+  /// When set, the model always runs at this confidence and the slider no longer controls it, so a `resultTransform`
+  /// can apply the slider's value itself while still receiving weaker detections.
+  public var fixedInferenceConfidence: Double?
 
   /// Controls whether the built-in prediction overlays (boxes, masks, pose, classification) are drawn.
   /// When `false`, inference and the result callbacks (`delegate`, `onDetection`) keep firing, but nothing is
@@ -262,7 +270,8 @@ public final class YOLOView: UIView, VideoCaptureDelegate {
           predictor.excludedClasses = self.excludedClasses
           self.videoCapture.predictor = predictor
           predictor.setNumItemsThreshold(numItems: self.getNumItemsThreshold())
-          predictor.setConfidenceThreshold(confidence: self.getConfidenceThreshold())
+          predictor.setConfidenceThreshold(
+            confidence: self.fixedInferenceConfidence ?? self.getConfidenceThreshold())
           self.labelName.text = processString(self.modelName)
           completion?(.success(()))
         case .failure(let error):
@@ -370,7 +379,8 @@ public final class YOLOView: UIView, VideoCaptureDelegate {
     guard validateUnitRange(confidence, name: "Confidence threshold") else { return }
     sliderConf.value = Float(confidence)
     renderThresholdLabels()
-    (videoCapture.predictor as? BasePredictor)?.setConfidenceThreshold(confidence: confidence)
+    (videoCapture.predictor as? BasePredictor)?.setConfidenceThreshold(
+      confidence: fixedInferenceConfidence ?? confidence)
   }
 
   /// Gets the current confidence threshold.
@@ -542,7 +552,8 @@ public final class YOLOView: UIView, VideoCaptureDelegate {
       className: prediction.cls,
       confidence: CGFloat(prediction.conf),
       classIndex: prediction.index,
-      frame: frame
+      frame: frame,
+      detail: prediction.detail
     )
   }
 
@@ -553,10 +564,12 @@ public final class YOLOView: UIView, VideoCaptureDelegate {
     confidence: CGFloat,
     classIndex: Int,
     frame: CGRect,
-    angle: CGFloat? = nil
+    angle: CGFloat? = nil,
+    detail: String? = nil
   ) {
     let color = ultralyticsColors[classIndex % ultralyticsColors.count]
-    let label = DetectionLabelStyle.text(className: className, confidence: confidence)
+    let classLabel = DetectionLabelStyle.text(className: className, confidence: confidence)
+    let label = detail.map { "\(classLabel) · \($0)" } ?? classLabel
     let alpha = DetectionLabelStyle.alpha(confidence: confidence)
     boundingBoxViews[index].show(
       frame: frame, label: label, color: color, alpha: alpha, angle: angle)
@@ -969,7 +982,7 @@ public final class YOLOView: UIView, VideoCaptureDelegate {
     } else if slider === sliderConf {
       let conf = Double(round(100 * sliderConf.value)) / 100
       renderThresholdLabels()
-      predictor?.setConfidenceThreshold(confidence: conf)
+      predictor?.setConfidenceThreshold(confidence: fixedInferenceConfidence ?? conf)
     } else if slider === sliderIoU {
       let iou = Double(round(100 * sliderIoU.value)) / 100
       renderThresholdLabels()
@@ -985,7 +998,7 @@ public final class YOLOView: UIView, VideoCaptureDelegate {
     renderThresholdLabels()
 
     if let predictor = videoCapture.predictor as? BasePredictor {
-      predictor.setConfidenceThreshold(confidence: conf)
+      predictor.setConfidenceThreshold(confidence: fixedInferenceConfidence ?? conf)
       predictor.setIouThreshold(iou: iou)
       predictor.setNumItemsThreshold(numItems: numItems)
     }
