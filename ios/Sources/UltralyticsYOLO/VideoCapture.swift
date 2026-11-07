@@ -13,6 +13,7 @@ import AVFoundation
 import CoreVideo
 import UIKit
 import Vision
+import simd
 
 /// A QR request processed on its owning camera queue; it does not create or control a camera.
 public final class QRCodeScan {
@@ -205,6 +206,7 @@ public final class VideoCapture: NSObject, @unchecked Sendable {
   private var nativeBufferDimensions: (long: Int, short: Int)?
   private var modelInputSize: (width: Int, height: Int)?
   private var fillsModelInput = false
+  private var currentIntrinsics: simd_float3x3?
 
   deinit {
     qrScan.cancel()
@@ -307,6 +309,10 @@ public final class VideoCapture: NSObject, @unchecked Sendable {
     let connection = videoOutput.connection(with: AVMediaType.video)
     connection?.videoOrientation = videoOrientation
     configureVideoMirroring(connection, isMirrored: position == .front)
+    // This can only be turned on before the session starts running.
+    if connection?.isCameraIntrinsicMatrixDeliverySupported == true {
+      connection?.isCameraIntrinsicMatrixDeliveryEnabled = true
+    }
 
     guard configureCameraDevice(device) else {
       return false
@@ -572,9 +578,33 @@ public final class VideoCapture: NSObject, @unchecked Sendable {
       let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer)
     else { return }
     currentBuffer = pixelBuffer
+    // `isUpdating` allows one inference at a time, so this stays with the frame until its result arrives.
+    currentIntrinsics = cameraIntrinsics(for: sampleBuffer, pixelBuffer: pixelBuffer)
     self.predictor?.isUpdating = true
     predictor.predict(sampleBuffer: sampleBuffer, onResultsListener: self, onInferenceTime: self)
     currentBuffer = nil
+  }
+
+  /// The frame's intrinsic matrix, estimated from the lens's field of view if the camera doesn't provide one.
+  private func cameraIntrinsics(
+    for sampleBuffer: CMSampleBuffer, pixelBuffer: CVPixelBuffer
+  ) -> simd_float3x3? {
+    if let data = CMGetAttachment(
+      sampleBuffer, key: kCMSampleBufferAttachmentKey_CameraIntrinsicMatrix,
+      attachmentModeOut: nil) as? Data
+    {
+      var matrix = simd_float3x3()
+      _ = withUnsafeMutableBytes(of: &matrix) { data.copyBytes(to: $0) }
+      return matrix
+    }
+
+    guard let device = captureDevice else { return nil }
+    let long = Float(max(CVPixelBufferGetWidth(pixelBuffer), CVPixelBufferGetHeight(pixelBuffer)))
+    let short = Float(min(CVPixelBufferGetWidth(pixelBuffer), CVPixelBufferGetHeight(pixelBuffer)))
+    let halfAngle = device.activeFormat.videoFieldOfView * .pi / 360
+    let focal = long / 2 / tan(halfAngle) * Float(device.videoZoomFactor)
+    return simd_float3x3(
+      SIMD3(focal, 0, 0), SIMD3(0, focal, 0), SIMD3(long / 2, short / 2, 1))
   }
 
   func updateVideoOrientation(orientation: AVCaptureVideoOrientation) {
@@ -676,7 +706,9 @@ extension VideoCapture: ResultsListener, InferenceTimeListener {
   }
 
   public func on(result: YOLOResult) {
-    DispatchQueue.main.async { [weak self] in
+    var result = result
+    result.cameraIntrinsics = currentIntrinsics
+    DispatchQueue.main.async { [weak self, result] in
       guard let self else { return }
       self.delegate?.onPredict(result: result)
       self.predictor?.isUpdating = false

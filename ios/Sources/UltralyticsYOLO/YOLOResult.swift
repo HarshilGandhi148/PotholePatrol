@@ -11,6 +11,7 @@
 import CoreGraphics
 import Foundation
 import UIKit
+import simd
 
 /// The complete output of a single YOLO inference, with optional task-specific fields populated as needed.
 ///
@@ -27,7 +28,7 @@ public struct YOLOResult: @unchecked Sendable {
   public let orig_shape: CGSize
 
   /// Array of detected bounding boxes with class information and confidence scores.
-  public let boxes: [Box]
+  public internal(set) var boxes: [Box]
 
   /// Optional segmentation masks for instance segmentation results.
   public var masks: Masks?
@@ -72,8 +73,19 @@ public struct YOLOResult: @unchecked Sendable {
   /// Array of class label names used by the model.
   public var names: [String]
 
+  /// The camera's intrinsic matrix for this frame, for live camera results. It may describe a larger or differently
+  /// rotated image than `orig_shape`, so convert it with `CameraIntrinsics.matched(to:)`.
+  public var cameraIntrinsics: simd_float3x3? = nil
+
   /// An empty result with zeroed metrics, used as a default return value before inference runs.
   public static let empty = YOLOResult(orig_shape: .zero, boxes: [], speed: 0, names: [])
+
+  /// A copy of this result with different boxes, for callers that post-process detections.
+  public func replacingBoxes(_ boxes: [Box]) -> YOLOResult {
+    var result = self
+    result.boxes = boxes
+    return result
+  }
 }
 
 /// A single bounding-box detection from a YOLO model.
@@ -95,6 +107,20 @@ public struct Box: @unchecked Sendable {
 
   /// The bounding box in normalized coordinates (0.0 to 1.0).
   public let xywhn: CGRect
+
+  /// Extra text shown after the class and confidence in the box's label.
+  public let detail: String?
+
+  public init(
+    index: Int, cls: String, conf: Float, xywh: CGRect, xywhn: CGRect, detail: String? = nil
+  ) {
+    self.index = index
+    self.cls = cls
+    self.conf = conf
+    self.xywh = xywh
+    self.xywhn = xywhn
+    self.detail = detail
+  }
 }
 
 /// Instance-segmentation mask data from a YOLO segmentation model.
