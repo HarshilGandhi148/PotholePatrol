@@ -31,13 +31,13 @@ The phone sends a pothole photo and its location. The backend then:
 1. Strips all EXIF data from the photo.
 2. Merges it with an existing pothole if there's one on the same road within 25 m.
 3. Works out who owns the road: INDOT, a city or town, the county, or a private owner.
-4. Names it by location, such as "Pothole on Teal Road (US 52) near Concord Road".
+4. Names it by location, such as "Pothole on East Washington Street (US 40) near Belmar Avenue".
 5. Scores it by how many different devices reported it.
 6. Tells the app whether to ask the resident to report it, and how.
 
 **The backend never contacts an agency.** The app opens the agency's real page and the resident taps the agency's own Submit.
 
-**Coverage:** road lookups work across Tippecanoe County. Anywhere else, the API still responds, but the owner comes back as `unknown`.
+**Coverage:** road lookups work across Indianapolis (all of Marion County) and Fishers. Anywhere else, the API still responds, but the owner comes back as `unknown`.
 
 ## 2. Rules for every request
 
@@ -105,8 +105,8 @@ Sends one pothole. Use `multipart/form-data`.
 ```bash
 curl -X POST https://BASE_URL/detections \
   -F photo=@pothole.jpg \
-  -F lat=40.39559 \
-  -F lng=-86.85730 \
+  -F lat=39.77309 \
+  -F lng=-86.02417 \
   -F captured_at=2026-11-07T17:50:00Z \
   -F device_id=7F3A9C10-2B44-4E0B-9A11-0C1D2E3F4A5B
 ```
@@ -199,25 +199,25 @@ Response `200`:
 
 ### `GET /agencies`
 
-Lists the four agencies with full reporting support.
+Lists the three agencies with full reporting support.
 
 ```json
 {
   "agencies": [
     {
-      "id": "city:lafayette",
-      "name": "City of Lafayette",
-      "channel": "seeclickfix",
-      "url": "https://seeclickfix.com/lafayette_2",
-      "phone": null,
+      "id": "city:indianapolis",
+      "name": "City of Indianapolis",
+      "channel": "webform",
+      "url": "https://request.indy.gov/",
+      "phone": "317-327-4622",
       "email": null,
-      "expected_response": "About 5 days (2026 median)"
+      "expected_response": null
     }
   ]
 }
 ```
 
-The IDs are `city:lafayette`, `city:west-lafayette`, `county:tippecanoe` and `indot`. `channel` is `seeclickfix` or `webform` today, and could also be `email` or `phone`.
+The IDs are `city:indianapolis`, `city:fishers` and `indot`. `channel` is `webform` today, and could also be `email` or `phone`.
 
 ### `GET /health`
 
@@ -263,7 +263,7 @@ The ranked list. It leaves out fixed potholes and potholes with no agency. Ties 
 | `agency_id` | string | Optional. Leave it out for all agencies. |
 
 ```bash
-curl -H "X-Official-Token: TOKEN" "https://BASE_URL/queue?agency_id=city:lafayette"
+curl -H "X-Official-Token: TOKEN" "https://BASE_URL/queue?agency_id=city:fishers"
 ```
 
 Response `200`:
@@ -296,31 +296,31 @@ A real response:
 
 ```json
 {
-  "id": "056274f6059b4496a4c0e03ad5fc859a",
-  "title": "Pothole on North 21st Street near Cobblestone Court",
-  "lat": 40.42609511417962,
-  "lng": -86.87288639455737,
-  "road_name": "North 21st Street",
-  "cross_street": "Cobblestone Court",
-  "status": "acknowledged",
+  "id": "f0d3c965928941f6b3788903c0f4ca36",
+  "title": "Pothole on Massachusetts Avenue near East New York Street",
+  "lat": 39.7719,
+  "lng": -86.15338,
+  "road_name": "Massachusetts Avenue",
+  "cross_street": "East New York Street",
+  "status": "open",
   "report_count": 1,
   "sent": false,
-  "first_seen": "2026-10-13T18:30:23Z",
-  "updated_at": "2026-11-07T18:03:53Z",
+  "first_seen": "2026-11-07T17:50:00Z",
+  "updated_at": "2026-11-07T19:03:24Z",
   "fixed_at": null,
-  "photo_url": null,
+  "photo_url": "https://BASE_URL/photos/f0d3c965928941f6b3788903c0f4ca36.jpg",
   "owner": {
-    "agency_id": "city:lafayette",
-    "agency_name": "City of Lafayette",
+    "agency_id": "city:indianapolis",
+    "agency_name": "City of Indianapolis",
     "kind": "city",
-    "reason": "This is inside City of Lafayette limits and is not a state road.",
+    "reason": "This is inside City of Indianapolis limits and is not a state road.",
     "confidence": "high"
   },
   "priority": {
     "score": 12,
     "reporters": 1,
-    "road_class_points": 0,
-    "days_open_points": 2
+    "road_class_points": 2,
+    "days_open_points": 0
   }
 }
 ```
@@ -330,15 +330,15 @@ A real response:
 | `id` | string | No | Pothole ID |
 | `title` | string | No | Display name. It's factual and has no severity. |
 | `lat`, `lng` | number | No | Location |
-| `road_name` | string | Yes | Includes the route if there is one, such as `Teal Road (US 52)` |
+| `road_name` | string | Yes | Includes the route if there is one, such as `East Washington Street (US 40)` |
 | `cross_street` | string | Yes | Nearest other road within 300 m |
 | `status` | string | No | `open`, `acknowledged` or `fixed` |
 | `report_count` | integer | No | Distinct devices |
 | `sent` | boolean | No | Has a resident reported it to the agency? |
 | `first_seen` | date | No | First capture time |
 | `updated_at` | date | No | Last change |
-| `fixed_at` | date | Yes | When an official marked it fixed. Imported reports use their created date. |
-| `photo_url` | string | Yes | Always handle `null`. Imported reports have no photo. |
+| `fixed_at` | date | Yes | When an official marked it fixed |
+| `photo_url` | string | Yes | Always handle `null` |
 | `owner` | object | No | See below |
 | `priority` | object | No | See below |
 
@@ -380,16 +380,16 @@ A real response:
 ```json
 {
   "method": "open_form",
-  "agency_id": "city:lafayette",
-  "agency_name": "City of Lafayette",
-  "url": "https://seeclickfix.com/lafayette_2",
-  "phone": null,
+  "agency_id": "city:indianapolis",
+  "agency_name": "City of Indianapolis",
+  "url": "https://request.indy.gov/",
+  "phone": "317-327-4622",
   "email": null,
-  "title": "Pothole on North 21st Street near Cobblestone Court",
-  "description": "Pothole on North 21st Street near Cobblestone Court. GPS 40.42610, -86.87289. 1 report through PotholePatrol, first seen 2026-10-13.",
-  "copy_text": "Pothole on North 21st Street near Cobblestone Court\nPothole on North 21st Street near Cobblestone Court. GPS 40.42610, -86.87289. 1 report through PotholePatrol, first seen 2026-10-13.",
-  "call_script": null,
-  "expected_response": "About 5 days (2026 median)",
+  "title": "Pothole on Massachusetts Avenue near East New York Street",
+  "description": "Pothole on Massachusetts Avenue near East New York Street. GPS 39.77190, -86.15338. 1 report through PotholePatrol, first seen 2026-11-07.",
+  "copy_text": "Pothole on Massachusetts Avenue near East New York Street\nPothole on Massachusetts Avenue near East New York Street. GPS 39.77190, -86.15338. 1 report through PotholePatrol, first seen 2026-11-07.",
+  "call_script": "I'd like to report a pothole. Pothole on Massachusetts Avenue near East New York Street. GPS 39.77190, -86.15338. 1 report through PotholePatrol, first seen 2026-11-07.",
+  "expected_response": null,
   "autofill_ready": false,
   "fields": [
     {
@@ -398,7 +398,7 @@ A real response:
       "selector": null,
       "required": true,
       "source": "location_text",
-      "value": "North 21st Street near Cobblestone Court (40.42610, -86.87289)"
+      "value": "Massachusetts Avenue near East New York Street (39.77190, -86.15338)"
     }
   ]
 }
@@ -452,7 +452,7 @@ Follow `send_plan.method`:
 
 **Things to know:**
 
-- **SeeClickFix needs an account.** Lafayette and West Lafayette don't allow guest reports, so residents sign in on the page. Don't handle their password in our app.
+- **A site may ask residents to sign in.** That isn't confirmed for Request Indy or Fishers Connect yet. If one does, the resident signs in on the page. Don't handle their password in our app.
 - **`user.*` fields stay on the phone.** If `source` starts with `user.`, such as `user.first_name`, `value` is `null`. Fill it from the phone, because the server stores no resident details.
 - **Photos can't be autofilled.** JavaScript can't set a file input, so the resident attaches the photo on the page.
 - **Don't test with real submissions.** Stop before Submit, so test reports never reach real staff.
@@ -738,7 +738,7 @@ Usage:
 ```swift
 let api = PotholeAPI(baseURL: URL(string: "https://BASE_URL")!)
 
-let result = try await api.postDetection(jpeg: jpegData, lat: 40.39559, lng: -86.85730)
+let result = try await api.postDetection(jpeg: jpegData, lat: 39.77309, lng: -86.02417)
 print(result.pothole.title, result.pothole.owner.reason)
 if result.askToSend, let plan = result.sendPlan {
     // Show the "Report this?" prompt, then follow plan.method.
@@ -808,14 +808,15 @@ These locations give known results. Test with your own JPEG:
 
 | Place | `lat`, `lng` | `agency_id` | Title |
 |---|---|---|---|
-| Teal Road, US 52 | `40.39559, -86.85730` | `indot` | Pothole on Teal Road (US 52) near Concord Road |
-| I-65 ramp | `40.37753, -86.78278` | `indot` | Pothole on I 65 near Hine Drive |
-| Sagamore Parkway South | `40.39762, -86.85675` | `city:lafayette` | Pothole on Sagamore Parkway South near Teal Road |
-| West State Street | `40.42331, -86.90694` | `city:west-lafayette` | Pothole on West State Street near South Chauncey Avenue |
-| County Road 600 West | `40.44904, -87.01399` | `county:tippecanoe` | Pothole on County Road 600 West |
-| South Winans Street | `40.50899, -86.84027` | `city:battle-ground` | Pothole on South Winans Street near Tipton Street |
+| East Washington Street, outside I-465 | `39.77309, -86.02417` | `indot` | Pothole on East Washington Street (US 40) near Belmar Avenue |
+| East Washington Street, downtown | `39.76689, -86.14951` | `city:indianapolis` | Pothole on East Washington Street near North East Street |
+| Massachusetts Avenue | `39.7719, -86.15338` | `city:indianapolis` | Pothole on Massachusetts Avenue near East New York Street |
+| East 116th Street, Fishers | `39.95684, -86.02938` | `city:fishers` | Pothole on East 116th Street near Madden Drive |
+| SR 37, Fishers | `39.98069, -86.00374` | `indot` | Pothole on IN-37 (SR 37) near Market Square Drive |
+| I-465 ramp | `39.82361, -86.27579` | `indot` | Pothole on I 465 near West 38th Street |
+| East 56th Street, Lawrence | `39.85582, -85.97718` | `city:lawrence` | Pothole on East 56th Street near Grosbeak Lane |
 
-Battle Ground isn't one of the four agencies, so its plan is `contact_only`.
+Lawrence isn't one of the three agencies, so its plan is `contact_only`. The same goes for Speedway, Beech Grove and Southport.
 
 **Test each state:**
 - **New pothole:** post to a location above.
@@ -823,9 +824,9 @@ Battle Ground isn't one of the four agencies, so its plan is `contact_only`.
 - **Same device:** post again with the same `device_id`. `report_count` stays the same.
 - **Outside coverage:** post from `41.0793, -85.1394` (Fort Wayne). Expect `owner.kind: "unknown"` and "We don't cover this area yet."
 
-**Demo story:** Sagamore Parkway looks like a state highway, but INDOT handed it to Lafayette, so it goes to the city. Teal Road is US 52 today, so it goes to INDOT.
+**Demo story:** East Washington Street changes owner at I-465. Inside it's a City of Indianapolis street, and outside it's US 40, so it goes to INDOT.
 
-**Existing data:** the server has 74 real Lafayette reports from SeeClickFix: 64 fixed, 9 acknowledged and 1 open. They have no photos, and each counts as one reporter. Test detections go into the same database, so tell Sanyam when you want them cleared.
+**Existing data:** the database starts empty. Test detections stay in it, so tell Sanyam when you want them cleared before the demo.
 
 ## 12. If you use the React frontend
 
@@ -846,7 +847,7 @@ The API's shape differs from `frontend/src/types/index.ts`:
 | `POST /v1/reports` (proposed) | `POST /detections` | The backend has no separate report step |
 | Video upload, 150 MB | Not supported | Send a JPEG or PNG frame, up to 10 MB |
 | Photo limit 20 MB | 10 MB | Lower the limit |
-| 44 Indianapolis and Fishers demo records | Real Tippecanoe County data | Centre the map on Lafayette |
+| 44 Indianapolis and Fishers demo records | Real detections only | Remove the mock records. The area already matches. |
 | JSON detection import | Not supported | Send each pothole to `POST /detections` |
 | Status edits stored locally | `PATCH /potholes/{id}/status` | Call the API with the official token |
 
@@ -858,8 +859,8 @@ Keep API calls in `src/services/`, as `frontend/AGENTS.md` says. Set `VITE_API_B
 |---|---|---|
 | HTTPS base URL | Sanyam will share it. It may change if the server restarts. | Sanyam |
 | Form autofill | All fields are placeholders until the WKWebView tests are done. Use `copy_text`. | Frontend, then Sanyam |
-| Tippecanoe County form | `url` points to the county homepage until the real form URL is known | Frontend or Sanyam |
-| West Lafayette SeeClickFix | The pothole request type is unconfirmed. The page link works the same way. | Frontend or Sanyam |
+| Fishers form | `url` is the Fishers Connect page. It blocks automated checks, so open it in a real browser to confirm it. | Frontend or Sanyam |
+| Demo data | The database starts empty. There's no public Indianapolis data to import. | Sanyam |
 | Backend code | Not in this repo yet | Sanyam |
 | iPhone testing | The API hasn't been tested from a real iPhone or over HTTPS | Everyone |
 | Real accounts | Not planned for MVP 1. Officials share one passcode. | MVP 2 |
