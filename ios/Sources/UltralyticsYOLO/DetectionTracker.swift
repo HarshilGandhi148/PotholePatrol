@@ -39,6 +39,9 @@ public final class DetectionTracker {
     /// How many strong detections are needed within `confirmationWindow` before an object is shown.
     public var confirmations = 3
     public var confirmationWindow: TimeInterval = 0.5
+    /// A detection only counts toward `confirmations` if its width and height are each within this factor of the
+    /// previous strong detection. Comparing neighbors allows for boxes growing as the camera approaches.
+    public var maximumSizeChange: CGFloat = 1.5
     /// How long a shown object survives without a detection.
     public var holdDuration: TimeInterval = 0.5
     /// Time constant of the box smoothing. Larger is steadier but lags more.
@@ -61,6 +64,7 @@ public final class DetectionTracker {
     var sizeVelocity = CGVector.zero
     var isConfirmed = false
     var strongHits: [TimeInterval]
+    var lastStrongRect: CGRect
     var lastSeen: TimeInterval
     var lastMeasuredRect: CGRect
     var lastMeasuredTime: TimeInterval
@@ -182,6 +186,8 @@ public final class DetectionTracker {
     updateVelocity(of: &track, with: detection.rect, at: time)
 
     if detection.confidence >= appearThreshold {
+      if !isSimilarSize(detection.rect, track.lastStrongRect) { track.strongHits.removeAll() }
+      track.lastStrongRect = detection.rect
       track.strongHits.append(time)
       track.strongHits.removeAll { time - $0 > settings.confirmationWindow }
       if track.strongHits.count >= settings.confirmations { track.isConfirmed = true }
@@ -191,6 +197,12 @@ public final class DetectionTracker {
       track.measuredRect = detection.rect
     }
     tracks[index] = track
+  }
+
+  private func isSimilarSize(_ first: CGRect, _ second: CGRect) -> Bool {
+    let widthChange = max(first.width, second.width) / max(min(first.width, second.width), .leastNonzeroMagnitude)
+    let heightChange = max(first.height, second.height) / max(min(first.height, second.height), .leastNonzeroMagnitude)
+    return widthChange <= settings.maximumSizeChange && heightChange <= settings.maximumSizeChange
   }
 
   private func updateVelocity(of track: inout Track, with rect: CGRect, at time: TimeInterval) {
@@ -221,8 +233,8 @@ public final class DetectionTracker {
     tracks.append(
       Track(
         id: nextID, classIndex: detection.classIndex, className: detection.className,
-        rect: detection.rect, confidence: detection.confidence, strongHits: [time], lastSeen: time,
-        lastMeasuredRect: detection.rect, lastMeasuredTime: time, measuredRect: detection.rect))
+        rect: detection.rect, confidence: detection.confidence, strongHits: [time],
+        lastStrongRect: detection.rect, lastSeen: time, lastMeasuredRect: detection.rect, lastMeasuredTime: time, measuredRect: detection.rect))
     nextID += 1
     if settings.confirmations <= 1 { tracks[tracks.count - 1].isConfirmed = true }
   }

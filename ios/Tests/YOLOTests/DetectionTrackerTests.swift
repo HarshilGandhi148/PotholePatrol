@@ -31,6 +31,37 @@ final class DetectionTrackerTests: XCTestCase {
     XCTAssertEqual(shown.map(\.count), [0, 0, 1])
   }
 
+  /// A box with the same center, scaled by `factor`.
+  private func scaled(_ factor: CGFloat) -> CGRect {
+    pothole.insetBy(
+      dx: pothole.width * (1 - factor) / 2, dy: pothole.height * (1 - factor) / 2)
+  }
+
+  func testBoxChangingSizeEveryFrameNeverShows() {
+    let frames = (0..<20).map { detection(scaled($0 % 2 == 0 ? 1 : 1.8)) }
+    XCTAssertTrue(run(DetectionTracker(), frames).allSatisfy(\.isEmpty))
+  }
+
+  func testSizeJumpRestartsTheCount() {
+    let shown = run(
+      DetectionTracker(),
+      [scaled(1), scaled(1), scaled(1.8), scaled(1.8), scaled(1.8)].map { detection($0) })
+    XCTAssertEqual(shown.map(\.count), [0, 0, 0, 0, 1])
+  }
+
+  func testBoxGrowingAsCameraApproachesStillShows() {
+    let shown = run(
+      DetectionTracker(), [scaled(1), scaled(1.2), scaled(1.44)].map { detection($0) })
+    XCTAssertEqual(shown.map(\.count), [0, 0, 1])
+  }
+
+  func testSizeChangeDoesNotHideConfirmedBox() {
+    let tracker = DetectionTracker()
+    _ = run(tracker, Array(repeating: detection(pothole), count: 3))
+    let shown = run(tracker, [scaled(1.8), scaled(1), scaled(1.8)].map { detection($0) }, startingAt: 3)
+    XCTAssertTrue(shown.allSatisfy { $0.count == 1 })
+  }
+
   func testDetectionsTooFarApartNeverConfirm() {
     let frames: [TrackerDetection?] = (0..<30).map { $0 % 10 == 0 ? detection(pothole) : nil }
     XCTAssertTrue(run(DetectionTracker(), frames).allSatisfy(\.isEmpty))

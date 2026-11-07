@@ -184,6 +184,26 @@ final class GroundPlaneMeasurerTests: XCTestCase {
     XCTAssertEqual(try XCTUnwrap(estimator.size(id: 1)).length ?? 0, 0.5, accuracy: 0.01)
   }
 
+  func testAreaIsEllipseOnceLengthIsKnown() throws {
+    let estimator = ObjectSizeEstimator()
+    add(estimator, distance: 7)
+    XCTAssertNil(try XCTUnwrap(estimator.size(id: 1)).area)
+    add(estimator, distance: 4)
+    let expected = Double.pi / 4 * 0.6 * 0.5
+    XCTAssertEqual(try XCTUnwrap(estimator.size(id: 1)?.area), expected, accuracy: 0.01)
+  }
+
+  func testAreaStaysTheSameAtEveryDistance() throws {
+    var areas = [Double]()
+    // At this camera tilt, these potholes are fully in frame and close enough to measure length.
+    for distance in [3.0, 3.5, 4, 4.5] {
+      let estimator = ObjectSizeEstimator()
+      add(estimator, distance: distance)
+      areas.append(try XCTUnwrap(estimator.size(id: 1)?.area))
+    }
+    XCTAssertEqual(areas.max()!, areas.min()!, accuracy: 0.01)
+  }
+
   func testOutliersDoNotMoveTheMedian() throws {
     let estimator = ObjectSizeEstimator()
     add(estimator, distance: 4, count: 7)

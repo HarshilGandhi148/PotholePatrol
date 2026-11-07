@@ -111,6 +111,12 @@ public struct EstimatedSize: Equatable {
   public let width: Double
   public let length: Double?
   public let distance: Double
+
+  /// Area in square meters, treating the object as an ellipse since potholes are roughly round. `nil` until `length`
+  /// is known.
+  public var area: Double? {
+    length.map { .pi / 4 * width * $0 }
+  }
 }
 
 /// Combines each tracked object's per-frame measurements into one stable size.

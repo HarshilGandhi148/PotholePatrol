@@ -16,15 +16,15 @@ Detecting &amp; reporting potholes.
 
 ### Steady boxes
 
-`DetectionTracker` follows each pothole across frames, so a box doesn't blink when the model misses a frame or a score hovers near the threshold. A pothole must be seen 3 times within 0.5 s to appear, then stays until it has been missing for 0.5 s. It appears at the slider's confidence and stays down to 0.10 below it.
+`DetectionTracker` follows each pothole across frames, so a box doesn't blink when the model misses a frame or a score hovers near the threshold. A pothole must be seen 3 times within 0.5 s at a similar size to appear, then stays until it has been missing for 0.5 s. A detection whose width or height differs by more than 1.5x from the previous one restarts that count, which filters out boxes that pop up at inconsistent sizes. A pothole appears at the slider's confidence and stays down to 0.10 below it.
 
-On our 7-second phone video, this cut boxes turning on and off by 83-89% at 10, 15 and 30 FPS.
+On our 7-second phone video, this cut boxes turning on and off by 86-89% at 10, 15 and 30 FPS.
 
 ### Size
 
 A pothole's size in pixels depends on how far away it is, so the app works out where its box sits on the road. `GroundPlaneMeasurer` uses three inputs and no distance sensor:
 
-- The phone's height above the road, set with the on-screen control.
+- The phone's height above the road, set with the on-screen slider.
 - The phone's tilt, from its motion sensors.
 - The camera's lens data.
 
@@ -33,10 +33,11 @@ For each box:
 1. Each box edge becomes a ray from the camera.
 2. `t = h / (d · n)` finds where that ray hits the road, where `d` is the ray, `n` points straight down and `h` is the phone's height.
 3. Width and length are the distances between those road points.
+4. The app displays area in square feet, treating the pothole as an ellipse: `area = π/4 × width × length`.
 
-A pothole twice as far away looks half as wide but is measured at twice the distance, so its size comes out the same. Each pothole reports the median of its measurements, using only frames where its box is fully in view, at least 40 px wide and within 8 m. Length also requires frames within 5 m, because it's much more sensitive to box error.
+A pothole twice as far away looks half as wide but is measured at twice the distance, so its size comes out the same. Each pothole uses the median of its measurements, from frames where its box is fully in view, at least 40 px wide and within 8 m. Length also requires frames within 5 m, because it's much more sensitive to box error, so a pothole shows only its distance until it's that close.
 
-To use it, mount the phone and enter its height measured with a tape. A height that's 10% off makes sizes 10% off.
+To use it, mount the phone and set its height, measured with a tape, on the height slider. A height that's 10% off makes width and length 10% off, and area about 21% off.
 
 ### Limits of the size estimate
 

@@ -41,7 +41,7 @@ private final class RecordViewController: UIViewController {
   private let tracker = DetectionTracker()
   private let sizeEstimator = ObjectSizeEstimator()
   private let motion = CMMotionManager()
-  private let heightStepper = UIStepper()
+  private let heightSlider = UISlider()
   private let heightLabel = UILabel()
   private let debugLabel = UILabel()
   private var isRunning = false
@@ -49,7 +49,7 @@ private final class RecordViewController: UIViewController {
   private static let heightKey = "cameraHeightMeters"
   /// The phone's height above the road, in meters. Size scales directly with this, so measure it with a tape.
   private var cameraHeight: Double {
-    get { UserDefaults.standard.object(forKey: Self.heightKey) as? Double ?? 1.2 }
+    get { UserDefaults.standard.object(forKey: Self.heightKey) as? Double ?? 1.0 }
     set { UserDefaults.standard.set(newValue, forKey: Self.heightKey) }
   }
 
@@ -91,28 +91,23 @@ private final class RecordViewController: UIViewController {
       }, for: .touchUpInside)
     view.addSubview(button)
 
-    heightStepper.minimumValue = 0.5
-    heightStepper.maximumValue = 3
-    heightStepper.stepValue = 0.05
-    heightStepper.value = cameraHeight
-    heightStepper.overrideUserInterfaceStyle = .dark
-    heightStepper.addAction(
+    heightSlider.minimumValue = 0.5
+    heightSlider.maximumValue = 3
+    heightSlider.value = Float(cameraHeight)
+    heightSlider.addAction(
       UIAction { [weak self] _ in
         guard let self else { return }
-        self.cameraHeight = self.heightStepper.value
+        let height = (Double(self.heightSlider.value) * 20).rounded() / 20  // Nearest 5 cm.
+        guard height != self.cameraHeight else { return }
+        self.cameraHeight = height
         self.showCameraHeight()
         self.sizeEstimator.reset()  // Earlier measurements used the old height.
       }, for: .valueChanged)
-    heightLabel.textColor = .white
-    heightLabel.font = .preferredFont(forTextStyle: .caption1)
-    heightLabel.textAlignment = .right
+    heightLabel.textColor = yoloView.labelSliderConf.textColor
+    heightLabel.font = yoloView.labelSliderConf.font
     showCameraHeight()
-    let heightControl = UIStackView(arrangedSubviews: [heightLabel, heightStepper])
-    heightControl.axis = .vertical
-    heightControl.alignment = .trailing
-    heightControl.spacing = 4
-    heightControl.translatesAutoresizingMaskIntoConstraints = false
-    view.addSubview(heightControl)
+    view.addSubview(heightLabel)
+    view.addSubview(heightSlider)
 
     debugLabel.translatesAutoresizingMaskIntoConstraints = false
     debugLabel.textColor = .yellow
@@ -133,13 +128,24 @@ private final class RecordViewController: UIViewController {
       modelPicker.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
       button.centerXAnchor.constraint(equalTo: view.centerXAnchor),
       button.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24),
-      heightControl.trailingAnchor.constraint(
-        equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
-      heightControl.bottomAnchor.constraint(
-        equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24),
     ])
 
     loadModel(at: modelPicker.selectedSegmentIndex)
+  }
+
+  /// Places the height slider across from the confidence slider, which `YOLOView` positions by frame.
+  override func viewDidLayoutSubviews() {
+    super.viewDidLayoutSubviews()
+    yoloView.layoutIfNeeded()
+    let confidenceSlider = yoloView.sliderConf.frame
+    let trailingEdge = view.bounds.width - max(view.safeAreaInsets.right, 20)
+    let width = min(confidenceSlider.width, trailingEdge - confidenceSlider.maxX - 16)
+    heightSlider.frame = CGRect(
+      x: trailingEdge - width, y: confidenceSlider.minY, width: width,
+      height: confidenceSlider.height)
+    heightLabel.frame = CGRect(
+      x: trailingEdge - width, y: yoloView.labelSliderConf.frame.minY, width: width,
+      height: yoloView.labelSliderConf.frame.height)
   }
 
   private func showCameraHeight() {
@@ -196,7 +202,8 @@ private final class RecordViewController: UIViewController {
     }
   }
 
-  /// Adds this frame's measurements, then returns each tracked pothole's label text, such as "≈24×18 in · 3.2 m".
+  /// Adds this frame's measurements, then returns each tracked pothole's label text, such as "≈2.4 ft² · 3.2 m".
+  /// Area needs a measurement from within 5 m, so farther potholes show only their distance.
   private func sizeLabels(for tracks: [TrackedDetection], in result: YOLOResult) -> [Int: String] {
     sizeEstimator.retain(ids: Set(tracks.map(\.id)))
     if let camera = groundCamera(for: result), let rotation = motion.deviceMotion?.rotationRate {
@@ -209,15 +216,14 @@ private final class RecordViewController: UIViewController {
       }
     }
 
-    let inchesPerMeter = 39.3701
+    let squareFeetPerSquareMeter = 10.7639
     var labels = [Int: String]()
     for track in tracks {
       guard let size = sizeEstimator.size(id: track.id) else { continue }
-      let width = Int((size.width * inchesPerMeter).rounded())
-      let dimensions =
-        size.length.map { "≈\(width)×\(Int(($0 * inchesPerMeter).rounded())) in" }
-        ?? "≈\(width) in wide"
-      labels[track.id] = dimensions + String(format: " · %.1f m", size.distance)
+      let distance = String(format: "%.1f m", size.distance)
+      labels[track.id] =
+        size.area.map { String(format: "≈%.1f ft² · ", $0 * squareFeetPerSquareMeter) + distance }
+        ?? distance
     }
     return labels
   }
