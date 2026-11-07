@@ -8,12 +8,45 @@ struct PotholePatrolRootView: View {
   @State private var tab = 0
   var body: some View {
     TabView(selection: $tab) {
-      NavigationStack { LiveScannerView(store: store, location: location) }.tabItem { Label("Scan", systemImage: "viewfinder") }.tag(0)
+      NavigationStack { ScanModesView(location: location) }.tabItem { Label("Scan", systemImage: "viewfinder") }.tag(0)
       NavigationStack { CitizenMapView(location: location, beginScan: { tab = 0 }) }.tabItem { Label("Map", systemImage: "map") }.tag(1)
       NavigationStack { MyReportsView(location: location) }.tabItem { Label("My Reports", systemImage: "tray.full") }.tag(2)
       NavigationStack { PatrolSettingsView(location: location) }.tabItem { Label("More", systemImage: "gearshape") }.tag(3)
     }
     .environmentObject(store).tint(Color(red: 0.12, green: 0.34, blue: 0.72))
+  }
+}
+
+/// The Scan tab's two modes: live detection, or a plain photo to report.
+@MainActor
+struct ScanModesView: View {
+  @ObservedObject var location: LocationService
+  @State private var showingLiveScan = false
+  var body: some View {
+    ScrollView {
+      VStack(spacing: 16) {
+        Button { showingLiveScan = true } label: {
+          modeCard(
+            title: "Live Scan", systemImage: "video.fill",
+            detail: "See potholes and their estimated size live. Mount your phone and press Record before you start driving. Never handle your phone while driving.")
+        }
+        NavigationLink { PhotoReportView(location: location) } label: {
+          modeCard(
+            title: "Report a Photo", systemImage: "camera.fill",
+            detail: "Standing still? Take one photo of a pothole and report it.")
+        }
+      }.buttonStyle(.plain).padding()
+    }
+    .navigationTitle("Pothole Patrol").navigationBarTitleDisplayMode(.inline)
+    .fullScreenCover(isPresented: $showingLiveScan) { LiveScannerView() }
+  }
+  private func modeCard(title: String, systemImage: String, detail: String) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Label(title, systemImage: systemImage).font(.title3.bold())
+      Text(detail).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.leading)
+    }
+    .padding().frame(maxWidth: .infinity, alignment: .leading)
+    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
   }
 }
 

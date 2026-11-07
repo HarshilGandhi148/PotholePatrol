@@ -35,7 +35,7 @@ struct DetectionReviewView: View {
           Button("Done") { dismiss() }.buttonStyle(.borderedProminent)
         } else {
           if let image = UIImage(data: draft.jpeg) { Image(uiImage: image).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 8)) }
-          Text("User-initiated still exported by the YOLO SDK. It may include detection overlays. Check that this photo shows the pothole you intend to report.").font(.caption).foregroundStyle(.secondary)
+          Text("Check that this photo shows the pothole you intend to report.").font(.caption).foregroundStyle(.secondary)
           Text("Captured \(draft.capturedAt.formatted(date: .abbreviated, time: .standard))").font(.caption)
           Toggle("This photo shows the pothole I want to report", isOn: $photoConfirmed)
           GroupBox("Confirm location") {

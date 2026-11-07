@@ -12,6 +12,13 @@ Detecting &amp; reporting potholes.
 | [`desktop/`](desktop/) | Computer version: live webcam detection and the Core ML export script |
 | [`docs/model-comparison/`](docs/model-comparison/) | Side-by-side images from our model comparison |
 
+## Using the app
+
+The Scan tab has two modes:
+
+- **Live Scan:** shows the live camera with steady boxes and each pothole's estimated area. Set the phone's height, mount it, and press Record before you start driving. Nothing is saved or sent from this mode.
+- **Report a Photo:** while standing still, take one plain photo, with no detection involved, then confirm its location and upload it.
+
 ## How the app steadies and sizes potholes
 
 ### Steady boxes

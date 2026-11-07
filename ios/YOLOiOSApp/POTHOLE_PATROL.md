@@ -17,10 +17,11 @@ The previous frontend checkout remains on its original branch. This work is **lo
 
 | File under `YOLOiOSApp/` | Responsibility |
 | --- | --- |
-| `SceneDelegate.swift` | UIHostingController root; existing RecordViewController adapted around the same YOLOView camera/model loader |
-| `AppDelegate.swift` | Native scene startup; external display uses ordinary mirroring to avoid the old dedicated screen creating another camera |
+| `SceneDelegate.swift` | UIHostingController root; RecordViewController runs Live Scan's YOLOView camera, tracker, area estimate and sliders |
+| `AppDelegate.swift` | Native scene startup; `OrientationLock` keeps the app in portrait except Live Scan; external display uses ordinary mirroring to avoid the old dedicated screen creating another camera |
 | `Patrol/PotholePatrolRootView.swift` | Scan / Map / My Reports / More shell, HTTPS Settings, permission state, shared badges and evidence views |
-| `Patrol/LiveScannerView.swift` | Camera authorization, stationary-user confirmation, scan lifecycle, actual confidence, three nearby-frame candidate gate, user capture |
+| `Patrol/LiveScannerView.swift` | Live Scan: full-screen presentation, camera authorization, keeping the screen awake |
+| `Patrol/PhotoReportView.swift` | Report a Photo: stationary confirmation, plain iOS camera with no detection, capture location |
 | `Patrol/DetectionReviewView.swift` | Still evidence review, original timestamp, explicit GPS/manual-map correction, upload/retry/save/discard |
 | `Patrol/CitizenViews.swift` | Native public MapKit map, public detail, local-ID My Reports, modular pending-government-report notice |
 | `Patrol/AdminViews.swift` | Secure sign-in, ranked operations queue, history, agency filter, map, read-only unassigned observations, confirmed status updates |
@@ -39,7 +40,9 @@ Nine new app Swift files are explicitly in the Xcode app group and PBXSourcesBui
 4. Confirm **Models** is a folder resource and contains `Models/Detect/pothole-yolo11n.mlpackage`, including its model and weights. This exact package is loaded using the original `setModel(modelPathOrName:task:completion:)` path. `best.mlpackage` remains a reference, not a fallback silently chosen by this app.
 5. Build for an available simulator for UI/network checks. Live inference and photo capture require a physical iPhone. Connect/unlock the phone, enable Developer Mode if required, select it as destination, and Run.
 6. In **More → Backend connection**, enter the current HTTPS base URL provided by Sanyam and save it. The temporary ngrok address is intentionally not bundled or committed. Tap **Check connection**. Every API request sets `ngrok-skip-browser-warning: true`.
-7. Use Scan only while safely stationary. Grant camera and When In Use location permission when prompted. Wait for YOLO11n ready, show a pothole across several frames, Capture Pothole, verify the actual still, confirm/correct coordinates, then Confirm & Upload.
+7. The Scan tab has two modes:
+   - **Live Scan:** set the phone height, mount the phone, and press Record before driving. Boxes and estimated area show on screen. Nothing is saved or sent.
+   - **Report a Photo:** while safely stationary, confirm the toggle, take a photo, verify it, confirm/correct coordinates, then Confirm & Upload.
 8. Open Map or My Reports. Use **Show All Reports** if the server's records lie outside Indianapolis/Fishers. No synthetic metro observations are inserted.
 9. **More → Administrator Sign In**: enter the server passcode on the phone. Do not put it in project files or environment examples. The app verifies it with the server and stores only the returned token in Keychain. A saved token is revalidated using the protected queue before showing operations.
 
@@ -55,14 +58,21 @@ Run `xcodebuild -showdestinations` with the same project/scheme for an explicit 
 
 ## Actual camera behavior and evidence limitations
 
-- The existing YOLOView still owns AVFoundation and Core ML. The app uses `setModel`, `setInferenceFlag`, `showOverlays`, `onDetection`, `capturePhoto`, and `stop`. It creates no second capture session.
-- Streaming results are filtered to class `pothole`. The highest-confidence candidate must appear in at least three consecutive nearby frames (center movement under 0.15 normalized image units, gap under 0.7 s). Capture requires a candidate within the last second. This is a local capture suggestion, not object tracking or physical deduplication.
-- **Capture API inspected:** `YOLOView.capturePhoto` calls the existing `VideoCapture.capturePhoto`, takes an AVCapturePhotoOutput still, runs the predictor on that still, then returns `renderShareImage(image)`. The returned image is a rendered still, possibly with YOLO overlays/visible SDK UI; it is not promised to be an untouched sensor JPEG. The app hides generic SDK controls, re-encodes this image to JPEG, and requires the resident to verify the pothole in it. No unrelated prior frame is uploaded or falsely identified as the selected still. Live confidence is not presented as a measured depth/severity or as the still's confidence.
-- Capture time is recorded at the user's shutter request; a real device must verify timing/overlay/crop accuracy. The SDK controls actual exposure/inference timing. No direct raw-frame API or library modification was introduced.
-- Photos are resized to at most 1920 points/pixels in the export renderer and compressed under 10 MiB, which also avoids retaining photo-library metadata. The backend additionally strips EXIF.
-- Pause, tab departure, backgrounding, camera interruption, and runtime errors stop the camera/inference. The screen stays awake only while scanning. Missing/denied camera, no usable rear camera, model loading/failure, no candidate, and capture failure have explicit states.
-- A stationary-user confirmation is required. When recent GPS reports speed above 2 m/s, scanning/capture pauses. This is a limited safety aid, not a reliable driving detector; poor/absent speed data cannot prove someone is stationary. Never demonstrate by operating a phone while driving.
-- No video file is recorded, and the UI makes no recording claim.
+**Live Scan**
+
+- YOLOView owns AVFoundation and Core ML, and the app creates no second capture session while Live Scan is open.
+- `DetectionTracker` confirms a pothole across frames, and `GroundPlaneMeasurer` estimates its area. See the repository README.
+- It's the only landscape screen, for a dashboard mount. It has no stationary check or speed stop, so it must be started before driving. Never operate a phone while driving.
+- Closing it stops the camera, and going to the background stops detection until Record is pressed again. The screen stays awake while it's open.
+- No video file is recorded, and nothing is saved or sent.
+
+**Report a Photo**
+
+- Uses `UIImagePickerController`, so the model doesn't run and the photo has no boxes on it.
+- A stationary confirmation is required, and taking a photo is blocked when recent GPS reports a speed above 2 m/s. This is a limited safety aid, not a reliable driving detector, because poor or absent speed data can't prove someone is stationary.
+- The app asks for a fresh location when the camera opens. If the photo takes more than about 15 seconds, the location stays empty and the resident sets it on the review screen.
+- Capture time is recorded when the photo is returned.
+- Photos are resized to at most 1920 points/pixels and compressed under 10 MiB, which also avoids retaining photo-library metadata. The backend additionally strips EXIF.
 
 ## Location, pending observations, and privacy
 
