@@ -16,7 +16,7 @@ Detecting &amp; reporting potholes.
 
 The Scan tab has two modes:
 
-- **Live Scan:** shows the live camera with steady boxes and each pothole's estimated area. Set the phone's height, mount it, and press Record before you start driving. Nothing is saved or sent from this mode.
+- **Live Scan:** shows the live camera with steady boxes and each pothole's estimated area and location. Set the phone's height, mount it, and press Record before you start driving. Nothing is sent from this mode yet, and potholes are only kept in memory until you close it.
 - **Report a Photo:** while standing still, take one plain photo, with no detection involved, then confirm its location and upload it.
 
 ## How the app steadies and sizes potholes
@@ -45,6 +45,12 @@ For each box:
 A pothole twice as far away looks half as wide but is measured at twice the distance, so its size comes out the same. Each pothole uses the median of its measurements, from frames where its box is fully in view, at least 40 px wide and within 8 m. Length also requires frames within 5 m, because it's much more sensitive to box error, so a pothole shows only its distance until it's that close.
 
 To use it, mount the phone and set its height, measured with a tape, on the height slider. A height that's 10% off makes width and length 10% off, and area about 21% off.
+
+### Location
+
+The same calculation gives each pothole's distance ahead of and to the side of the phone. Adding those to the phone's GPS position and direction gives the pothole's latitude and longitude, using the median across frames.
+
+The direction comes from the GPS course at 3 m/s or more, which assumes the camera faces the direction of travel, and from the compass otherwise. The result can't be more accurate than the phone's GPS, which is usually off by several meters. Location needs GPS accuracy within 20 m.
 
 ### Limits of the size estimate
 

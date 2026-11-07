@@ -1,5 +1,6 @@
 // Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
 
+import CoreLocation
 import CoreMotion
 import SwiftUI
 import UIKit
@@ -24,14 +25,28 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 /// Live Scan's camera preview with a model picker and one button: Record runs the selected bundled model with live
 /// boxes, Stop pauses it.
 final class RecordViewController: UIViewController {
-  private let onClose: () -> Void
+  /// A pothole seen during this Live Scan, kept in memory until it can be sent to the backend.
+  struct DetectedPothole {
+    let width: Double
+    let length: Double?
+    let area: Double?
+    let coordinate: GeoCoordinate?
+    let lastSeen: Date
+  }
 
-  init(onClose: @escaping () -> Void) {
+  private let location: LocationService
+  private let onClose: () -> Void
+  private(set) var detectedPotholes = [Int: DetectedPothole]()
+  /// Whether the motion attitude is referenced to north, so it can give the camera's compass direction.
+  private var hasCompassAttitude = false
+
+  init(location: LocationService, onClose: @escaping () -> Void) {
+    self.location = location
     self.onClose = onClose
     super.init(nibName: nil, bundle: nil)
   }
 
-  required init?(coder: NSCoder) { fatalError("Use init(onClose:)") }
+  required init?(coder: NSCoder) { fatalError("Use init(location:onClose:)") }
 
   /// Every model we compared on real potholes. YOLO11n won, so it is the only one offered in the picker.
   /// YOLOv8s is not bundled because its author states no license (see README).
@@ -49,7 +64,6 @@ final class RecordViewController: UIViewController {
   private let motion = CMMotionManager()
   private let heightSlider = UISlider()
   private let heightLabel = UILabel()
-  private let debugLabel = UILabel()
   private var isRunning = false
 
   private static let heightKey = "cameraHeightMeters"
@@ -132,20 +146,6 @@ final class RecordViewController: UIViewController {
     view.addSubview(heightLabel)
     view.addSubview(heightSlider)
 
-    debugLabel.translatesAutoresizingMaskIntoConstraints = false
-    debugLabel.textColor = .yellow
-    debugLabel.backgroundColor = .black.withAlphaComponent(0.5)
-    debugLabel.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
-    debugLabel.numberOfLines = 0
-    debugLabel.textAlignment = .center
-    #if DEBUG
-      view.addSubview(debugLabel)
-      NSLayoutConstraint.activate([
-        debugLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-        debugLabel.topAnchor.constraint(equalTo: modelPicker.bottomAnchor, constant: 44),
-      ])
-    #endif
-
     NSLayoutConstraint.activate([
       modelPicker.centerXAnchor.constraint(equalTo: view.centerXAnchor),
       modelPicker.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
@@ -225,17 +225,48 @@ final class RecordViewController: UIViewController {
     }
   }
 
-  /// Adds this frame's measurements, then returns each tracked pothole's label text, such as "≈2.4 ft² · 3.2 m".
-  /// Area needs a measurement from within 5 m, so farther potholes show only their distance.
+  /// The direction the camera faces, in degrees clockwise from north. While driving, the direction of travel is more
+  /// reliable than a compass inside a car, and assumes the camera faces forward.
+  private func cameraBearing(at fix: CLLocation) -> Double? {
+    if fix.speed >= 3, fix.course >= 0, fix.courseAccuracy >= 0, fix.courseAccuracy <= 20 {
+      return fix.course
+    }
+    guard hasCompassAttitude, let attitude = motion.deviceMotion?.attitude.rotationMatrix else {
+      return nil
+    }
+    return CameraGeoPose.bearing(attitudeM31: attitude.m31, attitudeM32: attitude.m32)
+  }
+
+  /// Where the camera is right now, or `nil` without a recent, accurate GPS fix and a known direction.
+  private func cameraPose() -> CameraGeoPose? {
+    guard let fix = location.location, fix.horizontalAccuracy >= 0, fix.horizontalAccuracy <= 20
+    else { return nil }
+    let age = Date().timeIntervalSince(fix.timestamp)
+    guard age >= 0, age <= 5, let bearing = cameraBearing(at: fix) else { return nil }
+
+    // GPS updates about once a second, so carry a moving car forward to now.
+    let traveled = fix.speed >= 3 && fix.course >= 0 ? fix.speed * min(age, 2) : 0
+    let fixPose = CameraGeoPose(
+      position: GeoCoordinate(
+        latitude: fix.coordinate.latitude, longitude: fix.coordinate.longitude),
+      bearing: fix.speed >= 3 && fix.course >= 0 ? fix.course : bearing)
+    return CameraGeoPose(
+      position: fixPose.coordinate(ahead: traveled, right: 0), bearing: bearing)
+  }
+
+  /// Adds this frame's measurements, then returns each tracked pothole's label text, such as
+  /// "≈2.4 ft² · 3.2 m" above "40.42610, -86.87289". Area needs a measurement from within 5 m, so farther potholes
+  /// show only their distance, and location needs a GPS fix.
   private func sizeLabels(for tracks: [TrackedDetection], in result: YOLOResult) -> [Int: String] {
     sizeEstimator.retain(ids: Set(tracks.map(\.id)))
     if let camera = groundCamera(for: result), let rotation = motion.deviceMotion?.rotationRate {
       let rotationRate = sqrt(rotation.x * rotation.x + rotation.y * rotation.y + rotation.z * rotation.z)
+      let pose = cameraPose()
       for track in tracks {
         guard let rect = track.measuredRect else { continue }
         sizeEstimator.add(
           id: track.id, rect: rect, imageSize: result.orig_shape, camera: camera,
-          rotationRate: rotationRate)
+          rotationRate: rotationRate, pose: pose)
       }
     }
 
@@ -243,30 +274,19 @@ final class RecordViewController: UIViewController {
     var labels = [Int: String]()
     for track in tracks {
       guard let size = sizeEstimator.size(id: track.id) else { continue }
+      detectedPotholes[track.id] = DetectedPothole(
+        width: size.width, length: size.length, area: size.area, coordinate: size.coordinate,
+        lastSeen: Date())
       let distance = String(format: "%.1f m", size.distance)
-      labels[track.id] =
+      let measurements =
         size.area.map { String(format: "≈%.1f ft² · ", $0 * squareFeetPerSquareMeter) + distance }
         ?? distance
+      labels[track.id] =
+        size.coordinate.map {
+          measurements + String(format: "\n%.5f, %.5f", $0.latitude, $0.longitude)
+        } ?? measurements
     }
     return labels
-  }
-
-  /// Shows the raw sensor values, so they can be checked on a real phone.
-  private func updateDebugReadout(for result: YOLOResult) {
-    #if DEBUG
-      guard let matrix = result.cameraIntrinsics, let camera = groundCamera(for: result) else {
-        debugLabel.text = "waiting for camera and motion data"
-        return
-      }
-      let raw = CameraIntrinsics(matrix: matrix)
-      let degreesPerRadian = 180 / Double.pi
-      debugLabel.text = String(
-        format: "raw fx %.0f fy %.0f cx %.0f cy %.0f\nimage %.0f×%.0f fx %.0f fy %.0f\ntilt down %.1f° roll %.1f°",
-        raw.fx, raw.fy, raw.cx, raw.cy, result.orig_shape.width, result.orig_shape.height,
-        camera.intrinsics.fx, camera.intrinsics.fy,
-        asin(camera.down.z) * degreesPerRadian,
-        atan2(camera.down.x, camera.down.y) * degreesPerRadian)
-    #endif
   }
 
   /// Replaces one frame's raw boxes with the tracker's steady ones, labeled with their size once it's known.
@@ -278,7 +298,6 @@ final class RecordViewController: UIViewController {
     let tracks = tracker.update(
       detections, at: CACurrentMediaTime(),
       appearThreshold: Float(yoloView.getConfidenceThreshold()))
-    updateDebugReadout(for: result)
     let labels = sizeLabels(for: tracks, in: result)
     let size = result.orig_shape
     return result.replacingBoxes(
@@ -308,7 +327,13 @@ final class RecordViewController: UIViewController {
     sizeEstimator.reset()
     if running {
       motion.deviceMotionUpdateInterval = 1.0 / 30
-      motion.startDeviceMotionUpdates()
+      if CMMotionManager.availableAttitudeReferenceFrames().contains(.xTrueNorthZVertical) {
+        hasCompassAttitude = true
+        motion.startDeviceMotionUpdates(using: .xTrueNorthZVertical)
+      } else {
+        hasCompassAttitude = false
+        motion.startDeviceMotionUpdates()
+      }
     } else {
       motion.stopDeviceMotionUpdates()
     }

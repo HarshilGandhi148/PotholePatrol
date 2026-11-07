@@ -64,7 +64,8 @@ Run `xcodebuild -showdestinations` with the same project/scheme for an explicit 
 - `DetectionTracker` confirms a pothole across frames, and `GroundPlaneMeasurer` estimates its area. See the repository README.
 - It's the only landscape screen, for a dashboard mount. It has no stationary check or speed stop, so it must be started before driving. Never operate a phone while driving.
 - Closing it stops the camera, and going to the background stops detection until Record is pressed again. The screen stays awake while it's open.
-- No video file is recorded, and nothing is saved or sent.
+- Each pothole's location comes from GPS plus its offset on the road. While moving at 3 m/s or more, the camera's direction comes from the GPS course, which assumes it faces the direction of travel. Otherwise it comes from the compass.
+- No video file is recorded, and nothing is sent. Each pothole's size and location stay in memory in `RecordViewController.detectedPotholes` until Live Scan is closed, ready for a later backend change. No journey history is stored.
 
 **Report a Photo**
 

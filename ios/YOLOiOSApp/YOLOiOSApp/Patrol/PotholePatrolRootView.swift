@@ -28,7 +28,7 @@ struct ScanModesView: View {
         Button { showingLiveScan = true } label: {
           modeCard(
             title: "Live Scan", systemImage: "video.fill",
-            detail: "See potholes and their estimated size live. Mount your phone and press Record before you start driving. Never handle your phone while driving.")
+            detail: "See potholes with their estimated size and location live. Mount your phone and press Record before you start driving. Never handle your phone while driving.")
         }
         NavigationLink { PhotoReportView(location: location) } label: {
           modeCard(
@@ -38,7 +38,7 @@ struct ScanModesView: View {
       }.buttonStyle(.plain).padding()
     }
     .navigationTitle("Pothole Patrol").navigationBarTitleDisplayMode(.inline)
-    .fullScreenCover(isPresented: $showingLiveScan) { LiveScannerView() }
+    .fullScreenCover(isPresented: $showingLiveScan) { LiveScannerView(location: location) }
   }
   private func modeCard(title: String, systemImage: String, detail: String) -> some View {
     VStack(alignment: .leading, spacing: 8) {
