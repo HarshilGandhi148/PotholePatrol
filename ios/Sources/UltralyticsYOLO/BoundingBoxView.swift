@@ -51,7 +51,7 @@ enum DetectionLabelStyle {
   static func size(for label: String, fontSize: CGFloat) -> CGSize {
     let textRect = label.boundingRect(
       with: maxTextSize,
-      options: .truncatesLastVisibleLine,
+      options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
       attributes: attributes(fontSize: fontSize),
       context: nil
     )

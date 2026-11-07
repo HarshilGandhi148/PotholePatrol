@@ -46,15 +46,20 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
     super.init(); authorization = manager.authorizationStatus; manager.delegate = self
     manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters; manager.distanceFilter = 10
   }
+  /// Continuous, precise updates for Live Scan. `stop()` returns to the battery-friendly defaults.
   func startScanning() {
     scanning = true
+    manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation; manager.distanceFilter = kCLDistanceFilterNone
     switch manager.authorizationStatus {
     case .notDetermined: manager.requestWhenInUseAuthorization()
     case .authorizedAlways, .authorizedWhenInUse: manager.startUpdatingLocation(); message = "Acquiring GPS…"
     default: message = "Location denied. Confirm a position manually."
     }
   }
-  func stop() { scanning = false; requestOnceAfterAuthorization = false; manager.stopUpdatingLocation() }
+  func stop() {
+    scanning = false; requestOnceAfterAuthorization = false; manager.stopUpdatingLocation()
+    manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters; manager.distanceFilter = 10
+  }
   func retry() {
     switch manager.authorizationStatus {
     case .notDetermined: requestOnceAfterAuthorization = true; manager.requestWhenInUseAuthorization()

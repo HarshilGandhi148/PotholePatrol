@@ -76,6 +76,6 @@
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Associate a confirmed pothole photo with its approximate location. No journey history is stored.</string>
+	<string>Work out where potholes are during Live Scan, and add a location to a pothole photo you report. No journey history is stored.</string>
 </dict>
 </plist>

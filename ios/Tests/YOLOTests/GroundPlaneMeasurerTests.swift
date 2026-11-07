@@ -204,6 +204,72 @@ final class GroundPlaneMeasurerTests: XCTestCase {
     XCTAssertEqual(areas.max()!, areas.min()!, accuracy: 0.01)
   }
 
+  func testAheadAndRightOfCamera() throws {
+    let (camera, toWorld) = camera(pitch: 10)
+    let measured = try XCTUnwrap(
+      camera.measure(
+        pixelBox: box(width: 0.3, length: 0.3, distance: 5, side: 1.2, toWorld: toWorld)))
+    XCTAssertEqual(measured.ahead, 5, accuracy: 0.05)
+    XCTAssertEqual(measured.right, 1.2, accuracy: 0.05)
+  }
+
+  func testPotholeToTheLeftHasNegativeRight() throws {
+    let (camera, toWorld) = camera(pitch: 10)
+    let measured = try XCTUnwrap(
+      camera.measure(
+        pixelBox: box(width: 0.3, length: 0.3, distance: 5, side: -1.2, toWorld: toWorld)))
+    XCTAssertEqual(measured.right, -1.2, accuracy: 0.05)
+  }
+
+  func testCoordinateAheadInEachDirection() {
+    let origin = GeoCoordinate(latitude: 40, longitude: -86)
+    let metersPerDegree = 111_195.0
+    let longitudeDegreesPerMeter = 1 / (metersPerDegree * cos(40 * Double.pi / 180))
+
+    let north = CameraGeoPose(position: origin, bearing: 0).coordinate(ahead: 10, right: 0)
+    XCTAssertEqual(north.latitude, 40 + 10 / metersPerDegree, accuracy: 1e-9)
+    XCTAssertEqual(north.longitude, -86, accuracy: 1e-9)
+
+    let east = CameraGeoPose(position: origin, bearing: 90).coordinate(ahead: 10, right: 0)
+    XCTAssertEqual(east.latitude, 40, accuracy: 1e-9)
+    XCTAssertEqual(east.longitude, -86 + 10 * longitudeDegreesPerMeter, accuracy: 1e-9)
+
+    // Facing north, your right is east. Facing east, your right is south.
+    let rightOfNorth = CameraGeoPose(position: origin, bearing: 0).coordinate(ahead: 0, right: 10)
+    XCTAssertEqual(rightOfNorth.longitude, -86 + 10 * longitudeDegreesPerMeter, accuracy: 1e-9)
+    let rightOfEast = CameraGeoPose(position: origin, bearing: 90).coordinate(ahead: 0, right: 10)
+    XCTAssertEqual(rightOfEast.latitude, 40 - 10 / metersPerDegree, accuracy: 1e-9)
+  }
+
+  func testBearingFromAttitude() {
+    XCTAssertEqual(CameraGeoPose.bearing(attitudeM31: -1, attitudeM32: 0), 0, accuracy: 1e-9)
+    XCTAssertEqual(CameraGeoPose.bearing(attitudeM31: 0, attitudeM32: 1), 90, accuracy: 1e-9)
+    XCTAssertEqual(CameraGeoPose.bearing(attitudeM31: 1, attitudeM32: 0), 180, accuracy: 1e-9)
+    XCTAssertEqual(CameraGeoPose.bearing(attitudeM31: 0, attitudeM32: -1), 270, accuracy: 1e-9)
+  }
+
+  func testEstimatorReportsPotholeLocation() throws {
+    let estimator = ObjectSizeEstimator()
+    let (camera, toWorld) = camera(pitch: 10)
+    let rect = normalized(box(width: 0.6, length: 0.5, distance: 4, toWorld: toWorld))
+    let pose = CameraGeoPose(position: GeoCoordinate(latitude: 40, longitude: -86), bearing: 0)
+    for _ in 0..<5 {
+      estimator.add(
+        id: 1, rect: rect, imageSize: imageSize, camera: camera, rotationRate: 0, pose: pose)
+    }
+    let coordinate = try XCTUnwrap(estimator.size(id: 1)?.coordinate)
+    XCTAssertEqual(coordinate.latitude, 40 + 4 / 111_195.0, accuracy: 1e-6)
+    XCTAssertEqual(coordinate.longitude, -86, accuracy: 1e-6)
+  }
+
+  func testSizeStillWorksWithoutLocation() throws {
+    let estimator = ObjectSizeEstimator()
+    add(estimator, distance: 4)
+    let size = try XCTUnwrap(estimator.size(id: 1))
+    XCTAssertNil(size.coordinate)
+    XCTAssertEqual(size.width, 0.6, accuracy: 0.01)
+  }
+
   func testOutliersDoNotMoveTheMedian() throws {
     let estimator = ObjectSizeEstimator()
     add(estimator, distance: 4, count: 7)

@@ -62,6 +62,56 @@ public struct GroundMeasurement: Equatable {
   public let length: Double
   /// Distance along the road from the point directly below the camera to the box center.
   public let distance: Double
+  /// How far the box center is ahead of the camera, in the direction it's facing.
+  public let ahead: Double
+  /// How far the box center is to the right of the camera.
+  public let right: Double
+}
+
+/// A point on Earth, in degrees.
+public struct GeoCoordinate: Equatable {
+  public let latitude: Double
+  public let longitude: Double
+
+  public init(latitude: Double, longitude: Double) {
+    self.latitude = latitude
+    self.longitude = longitude
+  }
+
+  /// The point this many meters north and east. Accurate over the short distances used here.
+  func offsetBy(north: Double, east: Double) -> GeoCoordinate {
+    let metersPerDegree = 111_195.0
+    return GeoCoordinate(
+      latitude: latitude + north / metersPerDegree,
+      longitude: longitude + east / (metersPerDegree * cos(latitude * .pi / 180)))
+  }
+}
+
+/// Where the camera is on Earth and which way it faces, used to place what it sees.
+public struct CameraGeoPose {
+  public let position: GeoCoordinate
+  /// Compass direction the camera faces, in degrees clockwise from north.
+  public let bearing: Double
+
+  public init(position: GeoCoordinate, bearing: Double) {
+    self.position = position
+    self.bearing = bearing
+  }
+
+  /// The compass direction of the back camera from a motion attitude in a north-referenced frame (x north, y west, z
+  /// up). Those two rotation matrix entries give the camera's direction, whichever way the phone is rotated.
+  public static func bearing(attitudeM31 m31: Double, attitudeM32 m32: Double) -> Double {
+    let degrees = atan2(m32, -m31) * 180 / .pi
+    return degrees < 0 ? degrees + 360 : degrees
+  }
+
+  /// The location of something `ahead` and `right` of the camera, in meters.
+  public func coordinate(ahead: Double, right: Double) -> GeoCoordinate {
+    let angle = bearing * .pi / 180
+    return position.offsetBy(
+      north: ahead * cos(angle) - right * sin(angle),
+      east: ahead * sin(angle) + right * cos(angle))
+  }
 }
 
 /// Works out real-world size from a box by assuming the box lies on a flat road.
@@ -93,16 +143,21 @@ public struct GroundPlaneCamera {
   /// Measures a box given in image pixels, or returns `nil` if any part of it is at or above the horizon.
   public func measure(pixelBox box: CGRect) -> GroundMeasurement? {
     guard let left = groundPoint(atPixel: CGPoint(x: box.minX, y: box.midY)),
-      let right = groundPoint(atPixel: CGPoint(x: box.maxX, y: box.midY)),
+      let rightEdge = groundPoint(atPixel: CGPoint(x: box.maxX, y: box.midY)),
       let far = groundPoint(atPixel: CGPoint(x: box.midX, y: box.minY)),
       let near = groundPoint(atPixel: CGPoint(x: box.midX, y: box.maxY)),
       let center = groundPoint(atPixel: CGPoint(x: box.midX, y: box.midY))
     else { return nil }
 
     let alongRoad = center - down * simd_dot(center, down)
+    // The camera's direction flattened onto the road. Pointing straight down, it has no direction along the road.
+    let opticalAxis = SIMD3<Double>(0, 0, 1)
+    let flattened = opticalAxis - down * simd_dot(opticalAxis, down)
+    let forward = simd_length(flattened) > 0.01 ? simd_normalize(flattened) : SIMD3(0, 0, 0)
     return GroundMeasurement(
-      width: simd_distance(left, right), length: simd_distance(near, far),
-      distance: simd_length(alongRoad))
+      width: simd_distance(left, rightEdge), length: simd_distance(near, far),
+      distance: simd_length(alongRoad), ahead: simd_dot(alongRoad, forward),
+      right: simd_dot(alongRoad, simd_cross(down, forward)))
   }
 }
 
@@ -111,6 +166,8 @@ public struct EstimatedSize: Equatable {
   public let width: Double
   public let length: Double?
   public let distance: Double
+  /// Where the object is on Earth, or `nil` without a usable position and direction for the camera.
+  public let coordinate: GeoCoordinate?
 
   /// Area in square meters, treating the object as an ellipse since potholes are roughly round. `nil` until `length`
   /// is known.
@@ -144,6 +201,8 @@ public final class ObjectSizeEstimator {
   private struct Samples {
     var widths = [Double]()
     var lengths = [Double]()
+    var latitudes = [Double]()
+    var longitudes = [Double]()
     var distance = 0.0
   }
 
@@ -165,7 +224,8 @@ public final class ObjectSizeEstimator {
 
   /// Adds one frame's measurement of an object. `rect` is normalized to the image, and `imageSize` is in pixels.
   public func add(
-    id: Int, rect: CGRect, imageSize: CGSize, camera: GroundPlaneCamera, rotationRate: Double
+    id: Int, rect: CGRect, imageSize: CGSize, camera: GroundPlaneCamera, rotationRate: Double,
+    pose: CameraGeoPose? = nil
   ) {
     let pixelBox = CGRect(
       x: rect.minX * imageSize.width, y: rect.minY * imageSize.height,
@@ -183,6 +243,13 @@ public final class ObjectSizeEstimator {
     {
       entry.widths.append(measurement.width * settings.calibration)
       entry.widths = entry.widths.suffix(settings.maximumSamples)
+      if let pose {
+        let coordinate = pose.coordinate(ahead: measurement.ahead, right: measurement.right)
+        entry.latitudes.append(coordinate.latitude)
+        entry.longitudes.append(coordinate.longitude)
+        entry.latitudes = entry.latitudes.suffix(settings.maximumSamples)
+        entry.longitudes = entry.longitudes.suffix(settings.maximumSamples)
+      }
       if measurement.distance <= settings.maximumLengthDistance {
         entry.lengths.append(measurement.length * settings.calibration)
         entry.lengths = entry.lengths.suffix(settings.maximumSamples)
@@ -197,7 +264,10 @@ public final class ObjectSizeEstimator {
     return EstimatedSize(
       width: median(entry.widths),
       length: entry.lengths.count >= settings.minimumSamples ? median(entry.lengths) : nil,
-      distance: entry.distance)
+      distance: entry.distance,
+      coordinate: entry.latitudes.count >= settings.minimumSamples
+        ? GeoCoordinate(latitude: median(entry.latitudes), longitude: median(entry.longitudes))
+        : nil)
   }
 
   private func median(_ values: [Double]) -> Double {
