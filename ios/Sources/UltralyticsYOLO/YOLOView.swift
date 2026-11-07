@@ -119,6 +119,9 @@ public final class YOLOView: UIView, VideoCaptureDelegate {
 
   public var onDetection: ((YOLOResult) -> Void)?
 
+  /// Class labels to ignore in models loaded by later `setModel` calls.
+  public var excludedClasses = Set<String>()
+
   /// Controls whether the built-in prediction overlays (boxes, masks, pose, classification) are drawn.
   /// When `false`, inference and the result callbacks (`delegate`, `onDetection`) keep firing, but nothing is
   /// rendered — letting consumers draw fully custom overlays. Defaults to `true`.
@@ -256,6 +259,7 @@ public final class YOLOView: UIView, VideoCaptureDelegate {
           self.task = task
           self.setupSublayers()
           self.modelName = modelURL.deletingPathExtension().lastPathComponent
+          predictor.excludedClasses = self.excludedClasses
           self.videoCapture.predictor = predictor
           predictor.setNumItemsThreshold(numItems: self.getNumItemsThreshold())
           self.labelName.text = processString(self.modelName)

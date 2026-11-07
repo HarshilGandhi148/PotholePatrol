@@ -43,6 +43,9 @@ public class BasePredictor: Predictor, @unchecked Sendable {
   /// The class labels used by the model for categorizing detections.
   public var labels = [String]()
 
+  /// Class labels whose detections are dropped, before the max-items limit is applied.
+  public var excludedClasses = Set<String>()
+
   /// Whether camera predictions should include a copy of the original input image in `YOLOResult`.
   public var capturesOriginalImage = false
 

@@ -36,6 +36,8 @@ private final class RecordViewController: UIViewController {
     yoloView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     // Alpha rather than isHidden: YOLOView re-shows some of its controls during layout.
     yoloView.subviews.forEach { $0.alpha = 0 }
+    [yoloView.sliderConf, yoloView.labelSliderConf].forEach { $0.alpha = 1 }
+    yoloView.excludedClasses = ["longitudinal_crack", "transverse_crack"]
     view.addSubview(yoloView)
 
     button.translatesAutoresizingMaskIntoConstraints = false
