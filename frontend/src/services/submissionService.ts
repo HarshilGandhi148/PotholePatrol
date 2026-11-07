@@ -1,0 +1,2 @@
+import type {PotholeReport,SubmissionResult} from '../types';
+export const submissionService={prepare:async(agencyId:string,report:PotholeReport)=>({agencyId,report,directSubmissionAvailable:false}),submit:async(agencyId:string,report:PotholeReport):Promise<SubmissionResult>=>{await submissionService.prepare(agencyId,report);return {success:true,localReportId:report.id,status:'saved-locally',message:'Saved on this device. No agency has received this report.'}}};

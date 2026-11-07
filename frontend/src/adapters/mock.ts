@@ -1,0 +1,11 @@
+import type { Agency,PotholeReport } from '../types';
+import {calculatePriority} from '../services/priorityService';
+export const agencies:Agency[]=[{id:'lafayette',name:'City of Lafayette',jurisdiction:'Lafayette',reportingChannel:'Local preparation only',supportedSubmissionTypes:[]},{id:'west',name:'West Lafayette Street Department',jurisdiction:'West Lafayette',reportingChannel:'Local preparation only',supportedSubmissionTypes:[]},{id:'county',name:'Tippecanoe County',jurisdiction:'County roads',reportingChannel:'Local preparation only',supportedSubmissionTypes:[]},{id:'indot',name:'INDOT',jurisdiction:'State routes',reportingChannel:'Local preparation only',supportedSubmissionTypes:[]}];
+const streets=['N River Road','State Street','Columbia Street','Salisbury Street','Union Street','Northwestern Avenue','South Street','Teal Road','Grant Street','Main Street','Ferry Street','SagAMore Parkway'];
+export const sampleReports:PotholeReport[]=Array.from({length:40},(_,i)=>{const west=i%3===0;const r:PotholeReport={id:`PP-${String(1040+i)}`,address:`${120+i*37} ${streets[i%12]}, ${west?'West Lafayette':'Lafayette'}`,latitude:40.405+(i*7%31)*.0016,longitude:-86.931+(i*11%37)*.0017,severity:(['High','Medium','Low'] as const)[i%3],status:(['Open','Open','Acknowledged','Fixed'] as const)[i%4],description:'Synthetic demonstration record: pavement depression in the travel lane. Site inspection recommended.',agencyId:west?'west':i%7===0?'indot':i%5===0?'county':'lafayette',reportCount:1+i%6,createdAt:new Date(Date.UTC(2026,9,21+i%16)).toISOString(),updatedAt:'2026-11-07T12:00:00Z',priorityScore:0,images:['/sample-road.svg'],observations:Array.from({length:1+i%6},(_,j)=>new Date(Date.UTC(2026,10,1+j)).toISOString()),source:'demo',safetyHazard:i%5===0};return {...r,priorityScore:calculatePriority(r).total}});
+const key='pothole-patrol-v1';
+export const mockReportsAdapter={
+ async list(){try {const saved=localStorage.getItem(key);return saved?JSON.parse(saved) as PotholeReport[]:sampleReports}catch{return sampleReports}},
+ async persist(reports:PotholeReport[]){localStorage.setItem(key,JSON.stringify(reports.map(r=>({...r,images:r.images.filter(u=>!u.startsWith('blob:'))}))));},
+ async reset(){localStorage.removeItem(key);return sampleReports}
+};

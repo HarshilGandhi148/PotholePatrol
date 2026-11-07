@@ -1,122 +1,20 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
-
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
-}
-
-export default App
+import {useState} from 'react';
+import {BrowserRouter,NavLink,Navigate,Route,Routes,useLocation,useNavigate} from 'react-router-dom';
+import {ArrowLeft,ArrowRight,Check,ChevronRight,ClipboardList,HardHat,Layers,Map,MapPin,Plus,RotateCcw,Route as Road,Search,ShieldCheck} from 'lucide-react';
+import {StoreProvider,useApp} from './state/store';
+import {RoadMap} from './components/RoadMap';
+import {Badge,DetailDrawer,Evidence} from './components/Reports';
+import {MediaPreview,MediaUploader} from './components/Media';
+import {detectionService} from './services/detectionService';
+import {submissionService} from './services/submissionService';
+import {calculatePriority} from './services/priorityService';
+import type {AnalysisResult,PotholeReport,Severity} from './types';
+import './App.css';
+function Workspace(){const path=useLocation().pathname;const official=path.startsWith('/official');const nav=useNavigate();const {error,loading,reset}=useApp();return <div className="app-shell"><aside className="sidebar"><NavLink className="brand" to="/"><span className="brand-icon"><Road size={24}/></span><span>Pothole<span className="brand-light">Patrol</span><small>ROAD INTELLIGENCE</small></span></NavLink><div className="workspace-label">{official?'MUNICIPAL WORKSPACE':'RESIDENT WORKSPACE'}</div><nav>{official?<><NavLink to="/official" end><ClipboardList size={19}/>Priority queue</NavLink><NavLink to="/official/map"><Map size={19}/>Road network</NavLink></>:<><NavLink to="/" end><Map size={19}/>Explore map</NavLink><NavLink to="/report"><Plus size={19}/>Report road damage</NavLink></>}</nav><div className="sidebar-bottom"><div className="region"><MapPin size={18}/><div>Greater Lafayette<small>Indiana, United States</small></div></div><div className="demo-label"><span/>Frontend demo workspace</div><button onClick={()=>{if(window.confirm('Reset all local demonstration reports and edits?'))void reset()}}><RotateCcw size={14}/>Reset demo data</button></div></aside><div className="workspace"><header className="topbar"><div className="breadcrumb">Workspace <ChevronRight size={14}/><strong>{official?'Municipal operations':'Community roads'}</strong></div><div className="mode-toggle" aria-label="Application mode"><button className={!official?'active':''} onClick={()=>nav('/')}>Resident</button><button className={official?'active':''} onClick={()=>nav('/official')}><HardHat size={15}/>Official</button></div><span className="avatar">{official?'OP':'RE'}</span></header>{error&&<p className="error global-error" role="alert">{error}</p>}{loading?<div className="empty">Loading road reports…</div>:<Routes><Route path="/" element={<Explorer official={false}/>}/><Route path="/official" element={<Explorer official/>}/><Route path="/official/map" element={<Explorer official mapOnly/>}/><Route path="/report" element={<ReportPage/>}/><Route path="/analysis" element={<AnalysisPage/>}/><Route path="/review" element={<ReviewPage/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes>}</div><nav className="bottom-nav"><NavLink end to={official?'/official':'/'}>{official?<ClipboardList/>:<Map/>}<span>{official?'Queue':'Explore'}</span></NavLink><NavLink to={official?'/official/map':'/report'}>{official?<Map/>:<Plus/>}<span>{official?'Map':'Report damage'}</span></NavLink></nav></div>}
+function Explorer({official,mapOnly=false}:{official:boolean;mapOnly?:boolean}){const {reports,agencies}=useApp();const [severity,setSeverity]=useState('');const [status,setStatus]=useState('');const [agency,setAgency]=useState('');const [search,setSearch]=useState('');const [sort,setSort]=useState('priority');const [selected,setSelected]=useState<string>();const nav=useNavigate();const filtered=reports.filter(r=>(!severity||r.severity===severity)&&(!status||r.status===status)&&(!agency||r.agencyId===agency)&&r.address.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>sort==='count'?b.reportCount-a.reportCount:b.priorityScore-a.priorityScore);const isMap=!official||mapOnly;return <main className={'explorer '+(isMap?'map-page':'')}><div className="page-heading"><div><div className="eyebrow">{official?'OPERATIONS / ROAD MAINTENANCE':'YOUR COMMUNITY, CONNECTED'}</div><h1>{official?mapOnly?'Road network':'Road Maintenance Overview':'A clearer view of your roads.'}</h1><p>{official?'Review reported road damage and prioritize investigation.':'Explore reported road damage across Lafayette and West Lafayette.'}</p></div>{!official&&<button className="primary" onClick={()=>nav('/report')}><Plus size={18}/>Report a Pothole</button>}{official&&<span className="workspace-chip"><ShieldCheck size={16}/>Local demo workspace</span>}</div>{official&&!mapOnly&&<div className="metrics">{[['Open potholes',reports.filter(r=>r.status==='Open').length],['High-severity reports',reports.filter(r=>r.severity==='High').length],['Reported observations',reports.reduce((n,r)=>n+r.reportCount,0)],['Awaiting review',reports.filter(r=>r.status==='Open').length]].map(([label,value],i)=><div className="metric" key={label}><span>{label}</span><strong>{value}</strong><small>{['Requires investigation','Across all statuses','Combined resident observations','Open demonstration reports'][i]}</small></div>)}</div>}<section className="workspace-card"><div className="section-title row"><div className="actions"><Layers size={18}/><h3>{isMap?'Community road map':'Reported road damage'}</h3><span className="count">{filtered.length}</span></div><span className="muted synthetic">Synthetic demonstration data</span></div><div className="filters"><label className="search"><Search size={17}/><input aria-label="Search address" placeholder="Search by address…" value={search} onChange={e=>setSearch(e.target.value)}/></label><select aria-label="Filter severity" value={severity} onChange={e=>setSeverity(e.target.value)}><option value="">All severities</option>{['High','Medium','Low'].map(s=><option key={s}>{s}</option>)}</select><select aria-label="Filter status" value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{['Open','Acknowledged','Fixed'].map(s=><option key={s}>{s}</option>)}</select>{official&&<select aria-label="Filter agency" value={agency} onChange={e=>setAgency(e.target.value)}><option value="">All agencies</option>{agencies.map(a=><option value={a.id} key={a.id}>{a.name}</option>)}</select>}{!isMap&&<select aria-label="Sort reports" value={sort} onChange={e=>setSort(e.target.value)}><option value="priority">Priority: highest first</option><option value="count">Observations: most first</option></select>}{(search||severity||status||agency)&&<button onClick={()=>{setSearch('');setSeverity('');setStatus('');setAgency('')}}>Clear</button>}</div>{isMap?<RoadMap reports={filtered} onSelect={setSelected}/>:<><div className="table-scroll"><table><thead><tr>{['Rank','Priority','Evidence','Location','Severity','Observations','Status','Agency',''].map((s,i)=><th key={i}>{s}</th>)}</tr></thead><tbody>{filtered.map((r,i)=><tr key={r.id} onClick={()=>setSelected(r.id)}><td className="rank">{String(i+1).padStart(2,'0')}</td><td><span className={'priority '+(r.priorityScore>=70?'urgent':'')}>{r.priorityScore}<small>/ 95</small></span></td><td><Evidence report={r}/></td><td><button className="text-button" onClick={()=>setSelected(r.id)}>{r.address.split(',')[0]}</button><small>{r.address.split(',')[1]} · {r.id}</small></td><td><Badge value={r.severity}/></td><td>{r.reportCount} <span className="muted">reports</span></td><td><Badge value={r.status}/></td><td className="agency-cell">{agencies.find(a=>a.id===r.agencyId)?.name}</td><td><ChevronRight size={16}/></td></tr>)}</tbody></table></div><div className="mobile-reports">{filtered.map(r=><button className="mobile-report" key={r.id} onClick={()=>setSelected(r.id)}><Evidence report={r}/><div><strong>{r.address}</strong><div className="actions"><Badge value={r.severity}/><Badge value={r.status}/></div></div><b>{r.priorityScore}</b></button>)}</div></>}{!filtered.length&&<div className="empty">No reports match your filters. Try a broader search.</div>}<footer className="table-footer"><span>{filtered.length} reports in Greater Lafayette</span><span>{isMap?'Select a marker to inspect a report':'Priority is a demo triage indicator · Human review required'}</span></footer></section>{selected&&<DetailDrawer id={selected} official={official} onClose={()=>setSelected(undefined)}/>}</main>}
+function Steps({step}:{step:number}){return <div className="steps">{['Capture','Analysis','Review'].map((s,i)=><span className={step>=i?'current':''} key={s}><b>{step>i?<Check size={13}/>:i+1}</b>{s}{i<2&&<ChevronRight size={16}/>}</span>)}</div>}
+function ReportPage(){const {media}=useApp();const nav=useNavigate();return <main className="flow"><Steps step={0}/><div className="page-heading"><div><div className="eyebrow">MAKE YOUR OBSERVATION COUNT</div><h1>Report Road Damage</h1><p>Capture a photo or video to prepare a pothole report.</p></div></div><MediaUploader/><div className="notice"><ShieldCheck size={20}/><div><strong>You’re in control of your report.</strong><p>This demo uses sample detection results. Your footage is not analyzed or sent to an agency.</p></div></div><div className="flow-footer"><button onClick={()=>nav('/')}><ArrowLeft size={16}/>Back to map</button><button className="primary" disabled={!media} onClick={()=>nav('/analysis')}>Continue to Analysis<ArrowRight size={16}/></button></div></main>}
+function AnalysisPage(){const {media,draft,setDraft,reports}=useApp();const nav=useNavigate();const [result,setResult]=useState<AnalysisResult>();const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [duplicate,setDuplicate]=useState<string>();if(!media)return <Navigate to="/report" replace/>;async function analyze(){if(!media)return;setBusy(true);setError('');try{const r=await (media.type==='photo'?detectionService.analyzePhoto(media):detectionService.analyzeVideo(media));setResult(r);setDraft({...draft,severity:r.suggestedSeverity||'Medium',description:r.suggestedDescription||'',agencyId:r.recommendedAgency||draft.agencyId})}catch{setError('Sample results could not load. Please try again.')}finally{setBusy(false)}}return <main className="flow"><Steps step={1}/><h1>Analysis & report details</h1><p className="muted">Preview the detection workflow, then verify your report.</p><div className="notice"><ShieldCheck size={20}/><div><strong>Demo Analysis — Sample detection results</strong><p>No AI inference is performed on your media. Severity, routing, and duplicate suggestions below are examples.</p></div></div>{!result?<section className="card"><MediaPreview/><button className="primary" disabled={busy} onClick={()=>void analyze()}>{busy?'Loading sample output…':'Preview sample detection results'}</button>{error&&<p role="alert" className="error">{error}</p>}</section>:<><div className="analysis-grid"><section className="card"><MediaPreview/><div className="actions"><Badge value={draft.severity}/><span className="muted">Sample severity suggestion</span></div><p>Possible {draft.severity.toLowerCase()}-severity road damage. Human verification recommended.</p><div className="score-panel"><small>PREVIEW · SUGGESTED PRIORITY</small><h2>{calculatePriority({severity:draft.severity,reportCount:1,safetyHazard:draft.safetyHazard,createdAt:new Date().toISOString()}).total} / 95</h2><p>1 observation · {draft.safetyHazard?'Safety hazard flagged':'No safety hazard flagged'}</p></div><h3>Possible nearby report · demo</h3><p>This example match was not calculated from your media or location.</p><button onClick={()=>setDuplicate(result.possibleDuplicates.find(id=>reports.some(r=>r.id===id)))}>Inspect sample duplicate</button></section><ReportForm/></div><div className="flow-footer"><button onClick={()=>nav('/report')}><ArrowLeft size={16}/>Change media</button><button className="primary" form="report-form" type="submit">Review Report<ArrowRight size={16}/></button></div></>}{duplicate&&<DetailDrawer id={duplicate} official={false} onClose={()=>setDuplicate(undefined)}/>}</main>}
+function ReportForm(){const {draft,setDraft,agencies}=useApp();const nav=useNavigate();const [pick,setPick]=useState(false);return <form id="report-form" className="card report-form" onSubmit={e=>{e.preventDefault();nav('/review')}}><h3>Verify report information</h3><p className="muted">Enter the observed location. Media location is not extracted.</p><label>Address or location description<input required value={draft.address} onChange={e=>setDraft({...draft,address:e.target.value})} placeholder="Street address or nearest intersection"/></label><div className="two-col">{(['latitude','longitude'] as const).map(k=><label key={k}>{k==='latitude'?'Latitude':'Longitude'}<input required type="number" step="any" min={k==='latitude'?-90:-180} max={k==='latitude'?90:180} value={draft[k]} onChange={e=>setDraft({...draft,[k]:e.target.value})}/></label>)}</div><button type="button" onClick={()=>setPick(!pick)}><MapPin size={16}/>{pick?'Hide location map':'Choose coordinates on map'}</button>{pick&&<div className="picker-map"><RoadMap reports={draft.latitude&&draft.longitude?[{latitude:Number(draft.latitude),longitude:Number(draft.longitude),id:'draft',severity:draft.severity,status:'Open'} as PotholeReport]:[]} onPick={(lat,lng)=>setDraft({...draft,latitude:lat.toFixed(6),longitude:lng.toFixed(6)})}/></div>}<label>Severity<select value={draft.severity} onChange={e=>setDraft({...draft,severity:e.target.value as Severity})}>{['Low','Medium','High'].map(s=><option key={s}>{s}</option>)}</select></label><label>Description<textarea required rows={3} value={draft.description} onChange={e=>setDraft({...draft,description:e.target.value})}/></label><label>Suggested agency · unverified<select value={draft.agencyId} onChange={e=>setDraft({...draft,agencyId:e.target.value})}>{agencies.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label><label className="checkbox"><input type="checkbox" checked={draft.safetyHazard} onChange={e=>setDraft({...draft,safetyHazard:e.target.checked})}/>Potential safety hazard</label></form>}
+function ReviewPage(){const {draft,media,agencies,add,clearDraft}=useApp();const nav=useNavigate();const [saved,setSaved]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState('');if(!saved&&(!media||!draft.address||!draft.latitude||!draft.longitude))return <Navigate to="/report" replace/>;async function save(){setBusy(true);try{const now=new Date().toISOString();const report:PotholeReport={id:'LOCAL-'+crypto.randomUUID().slice(0,8),...draft,latitude:Number(draft.latitude),longitude:Number(draft.longitude),status:'Open',reportCount:1,createdAt:now,updatedAt:now,priorityScore:0,images:media?.type==='photo'?[media.url]:[],observations:[now],source:'local'};report.priorityScore=calculatePriority(report).total;const result=await submissionService.submit(draft.agencyId,report);if(!result.success)throw Error(result.message);await add(report);setSaved(true)}catch{setError('Unable to prepare this report. Please try again.')}finally{setBusy(false)}}return <main className="flow"><Steps step={2}/>{saved?<section className="card success"><span className="success-icon"><Check size={30}/></span><h1>Report saved locally.</h1><p>Your prepared report is now on the community map and official priority queue.</p><p className="muted">No agency has received this report. Media is available for this session only.</p><button className="primary" onClick={()=>{clearDraft();nav('/')}}>Return to map<ArrowRight size={16}/></button></section>:<><h1>Review your prepared report</h1><p className="muted">Check the details before saving to this demonstration workspace.</p><section className="card review"><MediaPreview/><div className="actions"><Badge value={draft.severity}/><span className="muted">Local preparation</span></div><h2>{draft.address}</h2><p>{draft.latitude}, {draft.longitude}</p><p>{draft.description}</p><div className="detail-grid"><div><small>REPORTING DESTINATION · UNVERIFIED</small><strong>{agencies.find(a=>a.id===draft.agencyId)?.name}</strong></div><div><small>POTENTIAL DUPLICATE</small><strong>Sample nearby match · not verified</strong></div></div><div className="notice">Local demo adapter only. Saving does not submit to a government reporting system.</div></section>{error&&<p className="error" role="alert">{error}</p>}<div className="flow-footer"><button onClick={()=>nav('/analysis')}><ArrowLeft size={16}/>Edit details</button><button className="primary" disabled={busy} onClick={()=>void save()}>{busy?'Saving…':'Save Prepared Report'}<Check size={17}/></button></div></>}</main>}
+export default function App(){return <BrowserRouter><StoreProvider><Workspace/></StoreProvider></BrowserRouter>}
