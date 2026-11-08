@@ -1,6 +1,6 @@
 # Pothole Patrol
 
-An iPhone app that finds potholes with on-device computer vision, works out who's responsible for the road, and helps residents report them.
+An iPhone app that uses on-device computer vision to detect potholes, tag their GPS locations, and report them to the agency responsible for maintaining the road. No video leaves the vehicle, and the city owns all collected data.
 
 ## Why we built it
 
